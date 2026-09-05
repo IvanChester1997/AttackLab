@@ -26,13 +26,13 @@ PORT    STATE SERVICE
     assert result.ports[0].port == 22
     assert result.ports[0].protocol == "tcp"
     assert result.ports[0].state == "open"
-    assert result.ports[0].service == "ssh"
+    assert result.ports[0].service.name == "ssh"
 
     assert result.ports[1].port == 80
-    assert result.ports[1].service == "http"
+    assert result.ports[1].service.name == "http"
 
     assert result.ports[2].port == 443
-    assert result.ports[2].service == "https"
+    assert result.ports[2].service.name == "https"
 
 
 def test_scan_ignores_closed_ports():
@@ -91,3 +91,34 @@ def test_scan_handles_timeout():
 
     assert result.target == "127.0.0.1"
     assert result.ports == []
+
+
+def test_scan_parses_service_details():
+    nmap_output = """
+Starting Nmap
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 9.2p1
+80/tcp open  http    nginx 1.24.0
+"""
+
+    with patch(
+        "app.scanners.port_scanner.subprocess.run"
+    ) as mock_run:
+        mock_run.return_value.stdout = nmap_output
+        mock_run.return_value.returncode = 0
+
+        result = PortScanner.scan("127.0.0.1")
+
+    assert len(result.ports) == 2
+
+    ssh = result.ports[0]
+    assert ssh.port == 22
+    assert ssh.service.name == "ssh"
+    assert ssh.service.product == "OpenSSH"
+    assert ssh.service.version == "9.2p1"
+
+    http = result.ports[1]
+    assert http.port == 80
+    assert http.service.name == "http"
+    assert http.service.product == "nginx"
+    assert http.service.version == "1.24.0"

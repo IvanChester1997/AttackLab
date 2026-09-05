@@ -48,7 +48,19 @@ def scan(
     typer.echo("Open ports:")
 
     for port in result.ports:
-        service = port.service or "unknown"
+        if port.service:
+            service = port.service.name
+
+            if port.service.product:
+                service += f" ({port.service.product}"
+
+                if port.service.version:
+                    service += f" {port.service.version}"
+
+                service += ")"
+        else:
+            service = "unknown"
+
         typer.echo(
             f"{port.port}/{port.protocol} "
             f"{port.state} "

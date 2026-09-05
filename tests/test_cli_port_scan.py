@@ -17,13 +17,17 @@ def test_scan_command():
                 port=22,
                 protocol="tcp",
                 state="open",
-                service="ssh",
+                service={
+                    "name": "ssh",
+                },
             ),
             PortResult(
                 port=80,
                 protocol="tcp",
                 state="open",
-                service="http",
+                service={
+                    "name": "http",
+                },
             ),
         ],
     )
@@ -58,7 +62,9 @@ def test_scan_command_with_custom_ports():
                 port=8080,
                 protocol="tcp",
                 state="open",
-                service="http-proxy",
+                service={
+                    "name": "http-proxy",
+                },
             ),
         ],
     )
@@ -85,3 +91,33 @@ def test_scan_command_with_custom_ports():
 
     assert "8080" in result.stdout
     assert "http-proxy" in result.stdout
+
+
+def test_scan_command_displays_service_details():
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=22,
+                protocol="tcp",
+                state="open",
+                service={
+                    "name": "ssh",
+                    "product": "OpenSSH",
+                    "version": "9.2p1",
+                },
+            ),
+        ],
+    )
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ):
+        result = runner.invoke(
+            app,
+            ["scan", "127.0.0.1"],
+        )
+
+    assert result.exit_code == 0
+    assert "22/tcp open ssh (OpenSSH 9.2p1)" in result.stdout

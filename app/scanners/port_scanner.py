@@ -1,6 +1,8 @@
+import re
 import subprocess
 
 from app.models.port import PortResult, ScanResult
+from app.models.service import ServiceInfo
 
 
 DEFAULT_PORTS = "22,80,443"
@@ -15,6 +17,7 @@ class PortScanner:
                     "nmap",
                     "-Pn",
                     "-n",
+                    "-sV",
                     "-p",
                     ports,
                     target,
@@ -45,7 +48,7 @@ class PortScanner:
 
             port_protocol = parts[0]
             state = parts[1]
-            service = parts[2]
+            service_name = parts[2]
 
             try:
                 port, protocol = port_protocol.split("/", 1)
@@ -55,6 +58,29 @@ class PortScanner:
 
             if state != "open":
                 continue
+
+            product = None
+            version = None
+
+            if len(parts) >= 4:
+                service_details = " ".join(parts[3:])
+
+                match = re.match(
+                    r"(.+?)\s+(\d+(?:\.\d+)*(?:p\d+)?)$",
+                    service_details,
+                )
+
+                if match:
+                    product = match.group(1)
+                    version = match.group(2)
+                else:
+                    product = service_details
+
+            service = ServiceInfo(
+                name=service_name,
+                product=product,
+                version=version,
+            )
 
             parsed_ports.append(
                 PortResult(
