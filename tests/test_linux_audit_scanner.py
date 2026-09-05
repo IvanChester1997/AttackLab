@@ -378,3 +378,76 @@ MaxAuthTries 10
     assert len(findings) == 4
     assert connector.execute.call_count == 1
     connector.execute.assert_called_once_with("cat /etc/ssh/sshd_config")
+
+
+def test_get_world_writable_files():
+    connector = Mock()
+    connector.execute.return_value = """
+/tmp/world-writable.txt
+/var/tmp/test.log
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_world_writable_files()
+
+    assert files == [
+        "/tmp/world-writable.txt",
+        "/var/tmp/test.log",
+    ]
+    connector.execute.assert_called_once()
+
+
+def test_detect_world_writable_findings():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    files = [
+        "/tmp/world-writable.txt",
+        "/var/tmp/test.log",
+    ]
+
+    findings = scanner.detect_world_writable_findings(files)
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "World-Writable File"
+    assert findings[0]["severity"] == "medium"
+    assert "/tmp/world-writable.txt" in findings[0]["description"]
+
+    assert findings[1]["title"] == "World-Writable File"
+    assert findings[1]["severity"] == "medium"
+    assert "/var/tmp/test.log" in findings[1]["description"]
+
+
+def test_run_audit_includes_world_writable_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        """
+/tmp/world-writable.txt
+""".strip(),
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+    assert result.findings[0]["title"] == "World-Writable File"
+    assert result.findings[0]["severity"] == "medium"
+    assert "/tmp/world-writable.txt" in result.findings[0]["description"]

@@ -101,6 +101,48 @@ class LinuxAuditScanner:
             for user in extra_users
         ]
 
+    def get_world_writable_files(self) -> list[str]:
+        command = (
+            "find / "
+            "-xdev "
+            "\\( -path /proc -o -path /sys -o -path /dev -o -path /run \\) "
+            "-prune -o "
+            "-type f -perm -0002 -print "
+            "2>/dev/null | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [
+            line.strip()
+            for line in output.splitlines()
+            if line.strip()
+        ]
+
+    def detect_world_writable_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = (
+            files
+            if files is not None
+            else self.get_world_writable_files()
+        )
+
+        if not files:
+            return []
+
+        return [
+            {
+                "title": "World-Writable File",
+                "severity": "medium",
+                "description": (
+                    f"World-writable file detected: {file_path}"
+                ),
+            }
+            for file_path in files
+        ]
+
     def get_sshd_config(self) -> str:
         return self.connector.execute("cat /etc/ssh/sshd_config")
 
@@ -222,6 +264,11 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_uid_zero_findings(users))
         findings.extend(self.run_ssh_audit())
+
+        world_writable_files = self.get_world_writable_files()
+        findings.extend(
+            self.detect_world_writable_findings(world_writable_files)
+        )
 
         return LinuxAuditResult(
             hostname=hostname,
