@@ -323,3 +323,58 @@ PubkeyAuthentication no
     assert len(findings) == 3
     assert connector.execute.call_count == 1
     connector.execute.assert_called_once_with("cat /etc/ssh/sshd_config")
+
+
+def test_detect_max_auth_tries_too_high():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 10
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_max_auth_tries_findings()
+
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "medium"
+    assert "MaxAuthTries" in findings[0]["title"]
+
+
+def test_detect_max_auth_tries_safe():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_max_auth_tries_findings()
+
+    assert findings == []
+
+
+def test_run_ssh_audit_reads_sshd_config_once_with_all_checks():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin yes
+PasswordAuthentication yes
+PubkeyAuthentication no
+MaxAuthTries 10
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.run_ssh_audit()
+
+    assert len(findings) == 4
+    assert connector.execute.call_count == 1
+    connector.execute.assert_called_once_with("cat /etc/ssh/sshd_config")

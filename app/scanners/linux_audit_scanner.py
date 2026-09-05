@@ -155,6 +155,47 @@ class LinuxAuditScanner:
             }
         ]
 
+    def detect_max_auth_tries_findings(
+        self,
+        config: str | None = None,
+    ) -> list[dict]:
+        config = config if config is not None else self.get_sshd_config()
+
+        for line in config.splitlines():
+            line = line.strip()
+
+            if not line or line.startswith("#"):
+                continue
+
+            parts = line.split()
+
+            if len(parts) < 2:
+                continue
+
+            if parts[0].lower() != "maxauthtries":
+                continue
+
+            try:
+                value = int(parts[1])
+            except ValueError:
+                return []
+
+            if value <= 6:
+                return []
+
+            return [
+                {
+                    "title": "MaxAuthTries Too High",
+                    "severity": "medium",
+                    "description": (
+                        f"SSH MaxAuthTries is set to {value}, "
+                        "which allows excessive authentication attempts"
+                    ),
+                }
+            ]
+
+        return []
+
     def run_ssh_audit(self) -> list[dict]:
         config = self.get_sshd_config()
 
@@ -163,6 +204,7 @@ class LinuxAuditScanner:
         findings.extend(self.detect_ssh_root_login_findings(config))
         findings.extend(self.detect_password_authentication_findings(config))
         findings.extend(self.detect_pubkey_authentication_findings(config))
+        findings.extend(self.detect_max_auth_tries_findings(config))
 
         return findings
 
