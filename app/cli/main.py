@@ -1,6 +1,7 @@
 import typer
 
 from app.services.port_scan_service import PortScanService
+from app.services.risk_engine import RiskEngine
 
 
 app = typer.Typer(
@@ -65,6 +66,20 @@ def scan(
             f"{port.port}/{port.protocol} "
             f"{port.state} "
             f"{service}"
+        )
+
+    findings = RiskEngine.analyze(result)
+
+    if not findings:
+        return
+
+    typer.echo("")
+    typer.echo("Findings:")
+
+    for finding in findings:
+        typer.echo(
+            f"[{finding.severity.value.upper()}] "
+            f"{finding.title}"
         )
 
 

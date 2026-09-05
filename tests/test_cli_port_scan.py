@@ -3,6 +3,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from app.cli.main import app
+from app.models.finding import Finding, Severity
 from app.models.port import PortResult, ScanResult
 
 
@@ -121,3 +122,43 @@ def test_scan_command_displays_service_details():
 
     assert result.exit_code == 0
     assert "22/tcp open ssh (OpenSSH 9.2p1)" in result.stdout
+
+
+def test_scan_command_displays_findings():
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=23,
+                protocol="tcp",
+                state="open",
+                service={
+                    "name": "telnet",
+                },
+            ),
+        ],
+    )
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.RiskEngine.analyze",
+        return_value=[
+            Finding(
+                title="Exposed telnet service",
+                severity=Severity.HIGH,
+                description="Telnet is insecure.",
+                port=23,
+                service="telnet",
+            )
+        ],
+    ):
+        result = runner.invoke(
+            app,
+            ["scan", "127.0.0.1"],
+        )
+
+    assert result.exit_code == 0
+    assert "Findings:" in result.stdout
+    assert "[HIGH] Exposed telnet service" in result.stdout
