@@ -27,25 +27,11 @@ def version():
     typer.echo("AttackLab v0.1.0")
 
 
-@app.command("scan")
-def scan(
+def _run_audit(
     target: str,
-    ports: str = typer.Option(
-        "22,80,443",
-        "--ports",
-        "-p",
-        help="Ports to scan, e.g. 22,80,443 or 1-1000.",
-    ),
-    output: Path | None = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Write the security report to a JSON file.",
-    ),
-):
-    """
-    Scan target ports.
-    """
+    ports: str,
+    output: Path | None,
+) -> None:
     result = PortScanService.scan(target, ports)
 
     typer.echo(f"Target: {result.target}")
@@ -64,6 +50,7 @@ def scan(
         typer.echo("No open ports found.")
         return
 
+    typer.echo("")
     typer.echo("Open ports:")
 
     for port in result.ports:
@@ -86,19 +73,20 @@ def scan(
             f"{service}"
         )
 
+    typer.echo("")
+
     findings = report.findings
 
-    if not findings:
-        return
-
-    typer.echo("")
     typer.echo("Findings:")
 
-    for finding in findings:
-        typer.echo(
-            f"[{finding.severity.value.upper()}] "
-            f"{finding.title}"
-        )
+    if findings:
+        for finding in findings:
+            typer.echo(
+                f"[{finding.severity.value.upper()}] "
+                f"{finding.title}"
+            )
+    else:
+        typer.echo("No security findings.")
 
     typer.echo("")
     typer.echo("Summary:")
@@ -108,6 +96,50 @@ def scan(
     typer.echo(f"Medium: {report.summary.medium}")
     typer.echo(f"Low: {report.summary.low}")
     typer.echo(f"Info: {report.summary.info}")
+
+
+@app.command("audit")
+def audit(
+    target: str,
+    ports: str = typer.Option(
+        "22,80,443",
+        "--ports",
+        "-p",
+        help="Ports to scan, e.g. 22,80,443 or 1-1000.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write the security report to a JSON file.",
+    ),
+):
+    """
+    Run a security audit against a target.
+    """
+    _run_audit(target, ports, output)
+
+
+@app.command("scan")
+def scan(
+    target: str,
+    ports: str = typer.Option(
+        "22,80,443",
+        "--ports",
+        "-p",
+        help="Ports to scan, e.g. 22,80,443 or 1-1000.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write the security report to a JSON file.",
+    ),
+):
+    """
+    Scan target ports.
+    """
+    _run_audit(target, ports, output)
 
 
 if __name__ == "__main__":

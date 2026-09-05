@@ -22,5 +22,11 @@ app = FastAPI(
 async def root():
     return {
         "project": "AttackLab",
-        "status": "running"
+        "status": "running",
     }
+
+
+if __name__ == "__main__":
+    from app.cli.main import app as cli_app
+
+    cli_app()

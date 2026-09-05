@@ -74,6 +74,7 @@ PORT    STATE SERVICE
     command = mock_run.call_args.args[0]
 
     assert command[0] == "nmap"
+    assert "-sT" in command
     assert "127.0.0.1" in command
 
 

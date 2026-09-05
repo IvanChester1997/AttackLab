@@ -17,6 +17,7 @@ class PortScanner:
                     "nmap",
                     "-Pn",
                     "-n",
+                    "-sT",
                     "-sV",
                     "-p",
                     ports,

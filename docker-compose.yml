@@ -3,3 +3,21 @@ services:
     build: .
     ports:
       - "8000:8000"
+    networks:
+      - attacklab_lab
+
+  target:
+    build:
+      context: ./lab/target
+    container_name: attacklab-target
+    ports:
+      - "2121:21"
+      - "2222:22"
+      - "2323:23"
+      - "8080:80"
+    networks:
+      - attacklab_lab
+
+networks:
+  attacklab_lab:
+    name: attacklab_lab
