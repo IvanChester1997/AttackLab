@@ -269,3 +269,57 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
     assert len(result.interactive_users) == 2
     assert len(result.uid_zero_accounts) == 1
     assert len(result.service_accounts) == 1
+
+
+def test_detect_pubkey_authentication_disabled():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin no
+PasswordAuthentication yes
+PubkeyAuthentication no
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_pubkey_authentication_findings()
+
+    assert len(findings) == 1
+    assert findings[0]["severity"] == "medium"
+    assert "PubkeyAuthentication" in findings[0]["title"]
+
+
+def test_run_ssh_audit_reads_sshd_config_once():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin yes
+PasswordAuthentication yes
+PubkeyAuthentication no
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.run_ssh_audit()
+
+    assert len(findings) == 3
+    assert connector.execute.call_count == 1
+    connector.execute.assert_called_once_with("cat /etc/ssh/sshd_config")
+
+
+def test_run_ssh_audit_reads_sshd_config_once():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin yes
+PasswordAuthentication yes
+PubkeyAuthentication no
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.run_ssh_audit()
+
+    assert len(findings) == 3
+    assert connector.execute.call_count == 1
+    connector.execute.assert_called_once_with("cat /etc/ssh/sshd_config")

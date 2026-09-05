@@ -106,8 +106,9 @@ class LinuxAuditScanner:
 
     def detect_ssh_root_login_findings(
         self,
+        config: str | None = None,
     ) -> list[dict]:
-        config = self.get_sshd_config()
+        config = config if config is not None else self.get_sshd_config()
 
         if "PermitRootLogin yes" not in config:
             return []
@@ -122,8 +123,9 @@ class LinuxAuditScanner:
 
     def detect_password_authentication_findings(
         self,
+        config: str | None = None,
     ) -> list[dict]:
-        config = self.get_sshd_config()
+        config = config if config is not None else self.get_sshd_config()
 
         if "PasswordAuthentication yes" not in config:
             return []
@@ -136,12 +138,31 @@ class LinuxAuditScanner:
             }
         ]
 
+    def detect_pubkey_authentication_findings(
+        self,
+        config: str | None = None,
+    ) -> list[dict]:
+        config = config if config is not None else self.get_sshd_config()
+
+        if "PubkeyAuthentication no" not in config:
+            return []
+
+        return [
+            {
+                "title": "PubkeyAuthentication Disabled",
+                "severity": "medium",
+                "description": "SSH public key authentication is disabled",
+            }
+        ]
+
     def run_ssh_audit(self) -> list[dict]:
+        config = self.get_sshd_config()
+
         findings = []
 
-        findings.extend(self.detect_ssh_root_login_findings())
-
-        findings.extend(self.detect_password_authentication_findings())
+        findings.extend(self.detect_ssh_root_login_findings(config))
+        findings.extend(self.detect_password_authentication_findings(config))
+        findings.extend(self.detect_pubkey_authentication_findings(config))
 
         return findings
 
