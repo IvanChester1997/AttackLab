@@ -12,9 +12,7 @@ def test_get_hostname():
 
     assert scanner.get_hostname() == "attacklab"
 
-    connector.execute.assert_called_once_with(
-        "hostname"
-    )
+    connector.execute.assert_called_once_with("hostname")
 
 
 def test_get_os_release():
@@ -37,9 +35,7 @@ PRETTY_NAME="Ubuntu 22.04.5 LTS"
     assert result["version_id"] == "22.04"
     assert result["pretty_name"] == "Ubuntu 22.04.5 LTS"
 
-    connector.execute.assert_called_once_with(
-        "cat /etc/os-release"
-    )
+    connector.execute.assert_called_once_with("cat /etc/os-release")
 
 
 def test_run_audit():
@@ -53,6 +49,13 @@ ID=ubuntu
 VERSION_ID="22.04"
 PRETTY_NAME="Ubuntu 22.04 LTS"
 """.strip(),
+        "root:x:0:0:root:/root:/bin/bash",
+        "root:x:0:0:root:/root:/bin/bash",
+        "root:x:0:0:root:/root:/bin/bash",
+        "root:x:0:0:root:/root:/bin/bash",
+        "root:x:0:0:root:/root:/bin/bash",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -62,3 +65,207 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
     assert result.hostname == "server01"
     assert result.os["id"] == "ubuntu"
     assert result.os["pretty_name"] == "Ubuntu 22.04 LTS"
+
+    assert isinstance(result.users, list)
+    assert isinstance(result.findings, list)
+
+
+def test_get_users():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    users = scanner.get_users()
+
+    assert len(users) == 3
+
+    assert users[0].username == "root"
+    assert users[0].uid == 0
+
+    assert users[2].username == "user1"
+    assert users[2].uid == 1000
+
+    connector.execute.assert_called_once_with("cat /etc/passwd")
+
+
+def test_get_interactive_users():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    users = scanner.get_interactive_users()
+
+    assert len(users) == 2
+
+    usernames = [u.username for u in users]
+
+    assert "root" in usernames
+    assert "user1" in usernames
+
+
+def test_get_uid_zero_accounts():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root:x:0:0:root:/root:/bin/bash
+admin:x:0:0:admin:/root:/bin/bash
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    users = scanner.get_uid_zero_accounts()
+
+    assert len(users) == 2
+
+    usernames = [u.username for u in users]
+
+    assert "root" in usernames
+    assert "admin" in usernames
+
+
+def test_get_service_accounts():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    users = scanner.get_service_accounts()
+
+    usernames = [u.username for u in users]
+
+    assert "daemon" in usernames
+    assert "www-data" in usernames
+
+    assert "user1" not in usernames
+
+
+def test_detect_additional_uid_zero_accounts():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root:x:0:0:root:/root:/bin/bash
+admin:x:0:0:admin:/root:/bin/bash
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_uid_zero_findings()
+
+    assert len(findings) == 1
+
+    assert findings[0]["severity"] == "high"
+    assert "admin" in findings[0]["description"]
+
+
+def test_detect_permit_root_login_enabled():
+    connector = Mock()
+
+    connector.execute.return_value = """
+Port 22
+PermitRootLogin yes
+PasswordAuthentication no
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_ssh_root_login_findings()
+
+    assert len(findings) == 1
+
+    assert findings[0]["severity"] == "high"
+    assert "PermitRootLogin" in findings[0]["title"]
+
+
+def test_detect_password_authentication_enabled():
+    connector = Mock()
+
+    connector.execute.return_value = """
+Port 22
+PermitRootLogin no
+PasswordAuthentication yes
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_password_authentication_findings()
+
+    assert len(findings) == 1
+
+    assert findings[0]["severity"] == "medium"
+
+    assert "PasswordAuthentication" in findings[0]["title"]
+
+
+def test_run_ssh_audit():
+    connector = Mock()
+
+    connector.execute.return_value = """
+PermitRootLogin yes
+PasswordAuthentication yes
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.run_ssh_audit()
+
+    assert len(findings) == 2
+
+    titles = [f["title"] for f in findings]
+
+    assert "PermitRootLogin Enabled" in titles
+    assert "PasswordAuthentication Enabled" in titles
+
+
+def test_run_audit_collects_users_and_findings():
+    connector = Mock()
+
+    passwd_content = """
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+user1:x:1000:1000:user1:/home/user1:/bin/bash
+""".strip()
+
+    connector.execute.side_effect = [
+        "server01",
+        """
+    NAME="Ubuntu"
+    ID=ubuntu
+    VERSION_ID="22.04"
+    PRETTY_NAME="Ubuntu 22.04 LTS"
+    """.strip(),
+        passwd_content,
+        passwd_content,
+        passwd_content,
+        passwd_content,
+        "",
+        "",
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.users) == 3
+    assert len(result.interactive_users) == 2
+    assert len(result.uid_zero_accounts) == 1
+    assert len(result.service_accounts) == 1
