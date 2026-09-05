@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 from app.cli.main import app
 from app.models.finding import Finding, Severity
 from app.models.port import PortResult, ScanResult
+from app.models.report import ReportSummary, SecurityReport
 
 
 runner = CliRunner()
@@ -139,12 +140,10 @@ def test_scan_command_displays_findings():
         ],
     )
 
-    with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.RiskEngine.analyze",
-        return_value=[
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=result_data,
+        findings=[
             Finding(
                 title="Exposed telnet service",
                 severity=Severity.HIGH,
@@ -153,12 +152,135 @@ def test_scan_command_displays_findings():
                 service="telnet",
             )
         ],
+        summary=ReportSummary(
+            total_ports=1,
+            total_findings=1,
+            high=1,
+        ),
+    )
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.ReportGenerator.generate",
+        return_value=report,
+    ):
+        result = runner.invoke(app, ["scan", "127.0.0.1"])
+
+    assert result.exit_code == 0
+    assert "[HIGH] Exposed telnet service" in result.output
+    assert "Summary:" in result.output
+    assert "Total findings: 1" in result.output
+    assert "High: 1" in result.output
+
+
+def test_scan_command_writes_json_report(tmp_path):
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=23,
+                protocol="tcp",
+                state="open",
+                service={
+                    "name": "telnet",
+                },
+            ),
+        ],
+    )
+
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=result_data,
+        findings=[
+            Finding(
+                title="Exposed telnet service",
+                severity=Severity.HIGH,
+                description="Telnet is insecure.",
+                port=23,
+                service="telnet",
+            )
+        ],
+        summary=ReportSummary(
+            total_ports=1,
+            total_findings=1,
+            high=1,
+        ),
+    )
+
+    output_file = tmp_path / "report.json"
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.ReportGenerator.generate",
+        return_value=report,
     ):
         result = runner.invoke(
             app,
-            ["scan", "127.0.0.1"],
+            [
+                "scan",
+                "127.0.0.1",
+                "--output",
+                str(output_file),
+            ],
         )
 
     assert result.exit_code == 0
-    assert "Findings:" in result.stdout
-    assert "[HIGH] Exposed telnet service" in result.stdout
+    assert output_file.exists()
+
+    data = output_file.read_text(encoding="utf-8")
+
+    assert '"target": "127.0.0.1"' in data
+    assert '"total_findings": 1' in data
+    assert '"severity": "high"' in data
+    assert "Report saved to:" in result.output
+
+
+def test_scan_command_writes_empty_json_report(tmp_path):
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[],
+    )
+
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=result_data,
+        findings=[],
+        summary=ReportSummary(
+            total_ports=0,
+            total_findings=0,
+        ),
+    )
+
+    output_file = tmp_path / "empty-report.json"
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.ReportGenerator.generate",
+        return_value=report,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "scan",
+                "127.0.0.1",
+                "--output",
+                str(output_file),
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert output_file.exists()
+
+    data = output_file.read_text(encoding="utf-8")
+
+    assert '"target": "127.0.0.1"' in data
+    assert '"total_ports": 0' in data
+    assert '"total_findings": 0' in data
+    assert "Report saved to:" in result.output
+    assert "No open ports found." in result.output

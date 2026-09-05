@@ -1,7 +1,9 @@
+from pathlib import Path
+
 import typer
 
 from app.services.port_scan_service import PortScanService
-from app.services.risk_engine import RiskEngine
+from app.services.report_generator import ReportGenerator
 
 
 app = typer.Typer(
@@ -34,6 +36,12 @@ def scan(
         "-p",
         help="Ports to scan, e.g. 22,80,443 or 1-1000.",
     ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write the security report to a JSON file.",
+    ),
 ):
     """
     Scan target ports.
@@ -41,6 +49,16 @@ def scan(
     result = PortScanService.scan(target, ports)
 
     typer.echo(f"Target: {result.target}")
+
+    report = ReportGenerator.generate(result)
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            ReportGenerator.generate_json(report),
+            encoding="utf-8",
+        )
+        typer.echo(f"Report saved to: {output}")
 
     if not result.ports:
         typer.echo("No open ports found.")
@@ -68,7 +86,7 @@ def scan(
             f"{service}"
         )
 
-    findings = RiskEngine.analyze(result)
+    findings = report.findings
 
     if not findings:
         return
@@ -81,6 +99,15 @@ def scan(
             f"[{finding.severity.value.upper()}] "
             f"{finding.title}"
         )
+
+    typer.echo("")
+    typer.echo("Summary:")
+    typer.echo(f"Total findings: {report.summary.total_findings}")
+    typer.echo(f"Critical: {report.summary.critical}")
+    typer.echo(f"High: {report.summary.high}")
+    typer.echo(f"Medium: {report.summary.medium}")
+    typer.echo(f"Low: {report.summary.low}")
+    typer.echo(f"Info: {report.summary.info}")
 
 
 if __name__ == "__main__":
