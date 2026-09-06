@@ -1,5 +1,9 @@
+import pytest
+
 from app.connectors.ssh import SSHConnector
 from app.scanners.linux_audit_scanner import LinuxAuditScanner
+
+pytestmark = pytest.mark.integration
 
 
 def test_linux_audit_hostname():

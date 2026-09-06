@@ -1,4 +1,8 @@
+import pytest
+
 from app.connectors.ssh import SSHConnector
+
+pytestmark = pytest.mark.integration
 
 
 def test_execute_remote_command():
