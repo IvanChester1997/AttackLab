@@ -1,6 +1,7 @@
 import json
 
-from app.models.finding import Severity
+from app.models.finding import Finding, Severity
+from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
 from app.services.risk_engine import RiskEngine
@@ -8,8 +9,27 @@ from app.services.risk_engine import RiskEngine
 
 class ReportGenerator:
     @staticmethod
-    def generate(scan_result: ScanResult) -> SecurityReport:
+    def generate(
+        scan_result: ScanResult,
+        linux_audit: LinuxAuditResult | None = None,
+    ) -> SecurityReport:
         findings = RiskEngine.analyze(scan_result)
+
+        if linux_audit:
+            findings.extend(
+                Finding(
+                    title=finding["title"],
+                    severity=Severity(finding["severity"]),
+                    description=finding["description"],
+                    port=finding.get("port"),
+                    service=finding.get("service"),
+                    product=finding.get("product"),
+                    version=finding.get("version"),
+                    cve=finding.get("cve"),
+                    remediation=finding.get("remediation"),
+                )
+                for finding in linux_audit.findings
+            )
 
         risk_score = RiskEngine.calculate_score(findings)
         risk_level = RiskEngine.calculate_level(risk_score)
@@ -44,6 +64,7 @@ class ReportGenerator:
         return SecurityReport(
             target=scan_result.target,
             scan=scan_result,
+            linux_audit=linux_audit,
             findings=findings,
             summary=summary,
         )

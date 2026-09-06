@@ -1,3 +1,4 @@
+from app.models.finding import Severity
 from app.models.port import PortResult, ScanResult
 from app.models.service import ServiceInfo
 from app.services.report_generator import ReportGenerator
@@ -122,3 +123,80 @@ def test_report_generates_json():
     assert '"total_findings": 1' in output
     assert '"severity": "high"' in output
     assert '"service": "telnet"' in output
+
+
+def test_report_generator_includes_linux_audit_findings():
+    from app.models.linux_audit import LinuxAuditResult
+
+    scan_result = ScanResult(
+        target="127.0.0.1",
+        ports=[],
+    )
+
+    linux_audit = LinuxAuditResult(
+        hostname="test-host",
+        os={"name": "Debian"},
+        users=[],
+        interactive_users=[],
+        uid_zero_accounts=[],
+        service_accounts=[],
+        findings=[
+            {
+                "title": "NOPASSWD Sudo Rule",
+                "severity": "high",
+                "description": "NOPASSWD sudo rule detected: %admin ALL=(ALL) NOPASSWD: ALL",
+            }
+        ],
+    )
+
+    report = ReportGenerator.generate(
+        scan_result,
+        linux_audit=linux_audit,
+    )
+
+    assert len(report.findings) == 1
+    assert report.findings[0].title == "NOPASSWD Sudo Rule"
+    assert report.findings[0].severity == Severity.HIGH
+    assert report.summary.total_findings == 1
+
+
+def test_report_generator_includes_linux_findings_in_risk_score():
+    from app.models.linux_audit import LinuxAuditResult
+
+    scan_result = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=23,
+                protocol="tcp",
+                state="open",
+                service={"name": "telnet"},
+            ),
+        ],
+    )
+
+    linux_audit = LinuxAuditResult(
+        hostname="test-host",
+        os={"name": "Debian"},
+        users=[],
+        interactive_users=[],
+        uid_zero_accounts=[],
+        service_accounts=[],
+        findings=[
+            {
+                "title": "NOPASSWD Sudo Rule",
+                "severity": "high",
+                "description": "NOPASSWD sudo rule detected.",
+            }
+        ],
+    )
+
+    report = ReportGenerator.generate(
+        scan_result,
+        linux_audit=linux_audit,
+    )
+
+    assert report.summary.total_findings == 2
+    assert report.summary.high == 2
+    assert report.summary.risk_score == 14
+    assert report.summary.risk_level == "low"
