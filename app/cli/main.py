@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import paramiko
 import typer
 
 from app.connectors.ssh import SSHConnector
@@ -44,13 +45,17 @@ def _run_audit(
     linux_audit = None
 
     if username is not None:
-        connector = SSHConnector(
-            host=target,
-            username=username,
-            port=ssh_port,
-            key_file=key_file,
-        )
-        linux_audit = LinuxAuditScanner(connector).run_audit()
+        try:
+            connector = SSHConnector(
+                host=target,
+                username=username,
+                port=ssh_port,
+                key_file=key_file,
+            )
+            linux_audit = LinuxAuditScanner(connector).run_audit()
+        except (paramiko.SSHException, OSError) as exc:
+            typer.echo(f"SSH audit failed: {exc}", err=True)
+            raise typer.Exit(code=1)
 
     report = ReportGenerator.generate(
         result,

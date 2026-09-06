@@ -1,4 +1,5 @@
 from pathlib import Path
+import paramiko
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -369,3 +370,30 @@ def test_audit_command_runs_linux_audit():
 
     assert generated_scan is result_data
     assert generated_audit is linux_audit
+
+
+def test_audit_command_handles_ssh_error():
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[],
+    )
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.SSHConnector",
+        side_effect=paramiko.SSHException("connection failed"),
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "audit",
+                "127.0.0.1",
+                "--user",
+                "root",
+            ],
+        )
+
+    assert result.exit_code != 0
+    assert "connection failed" in result.output
