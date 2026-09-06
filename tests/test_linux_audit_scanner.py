@@ -442,6 +442,7 @@ def test_run_audit_includes_world_writable_findings():
     /tmp/world-writable.txt
     """.strip(),
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -519,6 +520,7 @@ MaxAuthTries 6
         """
 /usr/bin/passwd
 """.strip(),
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -530,3 +532,77 @@ MaxAuthTries 6
     assert result.findings[0]["title"] == "SUID/SGID File"
     assert result.findings[0]["severity"] == "medium"
     assert "/usr/bin/passwd" in result.findings[0]["description"]
+
+
+def test_get_cron_entries():
+    connector = Mock()
+
+    connector.execute.return_value = """
+/etc/cron.d/e2scrub_all
+/etc/cron.daily/apt-compat
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    entries = scanner.get_cron_entries()
+
+    assert entries == [
+        "/etc/cron.d/e2scrub_all",
+        "/etc/cron.daily/apt-compat",
+    ]
+
+    connector.execute.assert_called_once()
+
+
+def test_detect_cron_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    entries = [
+        "/etc/cron.d/e2scrub_all",
+        "/etc/cron.daily/apt-compat",
+    ]
+
+    findings = scanner.detect_cron_findings(entries)
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "Cron Job Detected"
+    assert findings[0]["severity"] == "low"
+    assert "/etc/cron.d/e2scrub_all" in findings[0]["description"]
+
+
+def test_run_audit_includes_cron_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "",
+        "",
+        """
+/etc/cron.d/e2scrub_all
+""".strip(),
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+
+    assert result.findings[0]["title"] == "Cron Job Detected"
+    assert result.findings[0]["severity"] == "low"
