@@ -113,21 +113,47 @@ class LinuxAuditScanner:
 
         output = self.connector.execute(command)
 
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def get_suid_sgid_files(self) -> list[str]:
+        command = (
+            "find / "
+            "-xdev "
+            "\\( -path /proc -o -path /sys -o -path /dev -o -path /run \\) "
+            "-prune -o "
+            "-type f "
+            "\\( -perm -4000 -o -perm -2000 \\) "
+            "-print "
+            "2>/dev/null | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_suid_sgid_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = files if files is not None else self.get_suid_sgid_files()
+
+        if not files:
+            return []
+
         return [
-            line.strip()
-            for line in output.splitlines()
-            if line.strip()
+            {
+                "title": "SUID/SGID File",
+                "severity": "medium",
+                "description": (f"SUID/SGID file detected: {file_path}"),
+            }
+            for file_path in files
         ]
 
     def detect_world_writable_findings(
         self,
         files: list[str] | None = None,
     ) -> list[dict]:
-        files = (
-            files
-            if files is not None
-            else self.get_world_writable_files()
-        )
+        files = files if files is not None else self.get_world_writable_files()
 
         if not files:
             return []
@@ -136,9 +162,7 @@ class LinuxAuditScanner:
             {
                 "title": "World-Writable File",
                 "severity": "medium",
-                "description": (
-                    f"World-writable file detected: {file_path}"
-                ),
+                "description": (f"World-writable file detected: {file_path}"),
             }
             for file_path in files
         ]
@@ -266,9 +290,11 @@ class LinuxAuditScanner:
         findings.extend(self.run_ssh_audit())
 
         world_writable_files = self.get_world_writable_files()
-        findings.extend(
-            self.detect_world_writable_findings(world_writable_files)
-        )
+        findings.extend(self.detect_world_writable_findings(world_writable_files))
+
+        suid_sgid_files = self.get_suid_sgid_files()
+
+        findings.extend(self.detect_suid_sgid_findings(suid_sgid_files))
 
         return LinuxAuditResult(
             hostname=hostname,

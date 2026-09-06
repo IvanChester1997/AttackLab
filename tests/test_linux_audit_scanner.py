@@ -426,6 +426,83 @@ def test_run_audit_includes_world_writable_findings():
     connector.execute.side_effect = [
         "attacklab",
         """
+    ID=debian
+    NAME="Debian GNU/Linux"
+    """.strip(),
+        """
+    root:x:0:0:root:/root:/bin/bash
+    """.strip(),
+        """
+    PermitRootLogin no
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    MaxAuthTries 6
+    """.strip(),
+        """
+    /tmp/world-writable.txt
+    """.strip(),
+        "",
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+    assert result.findings[0]["title"] == "World-Writable File"
+    assert result.findings[0]["severity"] == "medium"
+    assert "/tmp/world-writable.txt" in result.findings[0]["description"]
+
+
+def test_get_suid_sgid_files():
+    connector = Mock()
+
+    connector.execute.return_value = """
+/usr/bin/passwd
+/usr/bin/su
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_suid_sgid_files()
+
+    assert files == [
+        "/usr/bin/passwd",
+        "/usr/bin/su",
+    ]
+
+    connector.execute.assert_called_once()
+
+
+def test_detect_suid_sgid_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = [
+        "/usr/bin/passwd",
+        "/usr/bin/su",
+    ]
+
+    findings = scanner.detect_suid_sgid_findings(files)
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "SUID/SGID File"
+    assert findings[0]["severity"] == "medium"
+    assert "/usr/bin/passwd" in findings[0]["description"]
+
+    assert findings[1]["title"] == "SUID/SGID File"
+    assert findings[1]["severity"] == "medium"
+    assert "/usr/bin/su" in findings[1]["description"]
+
+
+def test_run_audit_includes_suid_sgid_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
 ID=debian
 NAME="Debian GNU/Linux"
 """.strip(),
@@ -438,8 +515,9 @@ PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 6
 """.strip(),
+        "",
         """
-/tmp/world-writable.txt
+/usr/bin/passwd
 """.strip(),
     ]
 
@@ -448,6 +526,7 @@ MaxAuthTries 6
     result = scanner.run_audit()
 
     assert len(result.findings) == 1
-    assert result.findings[0]["title"] == "World-Writable File"
+
+    assert result.findings[0]["title"] == "SUID/SGID File"
     assert result.findings[0]["severity"] == "medium"
-    assert "/tmp/world-writable.txt" in result.findings[0]["description"]
+    assert "/usr/bin/passwd" in result.findings[0]["description"]
