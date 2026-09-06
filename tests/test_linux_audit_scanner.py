@@ -57,6 +57,7 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -262,6 +263,7 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         "",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -449,6 +451,7 @@ def test_run_audit_includes_world_writable_findings():
         "",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -526,6 +529,7 @@ MaxAuthTries 6
         """
 /usr/bin/passwd
 """.strip(),
+        "",
         "",
         "",
         "",
@@ -608,6 +612,7 @@ MaxAuthTries 6
         "",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -678,6 +683,7 @@ MaxAuthTries 6
         "/etc/cron.d/backdoor",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -745,6 +751,7 @@ MaxAuthTries 6
         "",
         "",
         "",
+        "",
         "root ALL=(ALL) NOPASSWD: ALL",
     ]
 
@@ -795,4 +802,55 @@ def test_detect_authorized_keys_findings():
     )
     assert findings[1]["description"] == (
         "SSH authorized_keys file detected: /home/test/.ssh/authorized_keys"
+    )
+
+
+def test_get_writable_authorized_keys_files():
+    connector = Mock()
+
+    connector.execute.return_value = """
+/root/.ssh/authorized_keys
+/home/test/.ssh/authorized_keys
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_writable_authorized_keys_files()
+
+    assert files == [
+        "/root/.ssh/authorized_keys",
+        "/home/test/.ssh/authorized_keys",
+    ]
+
+    connector.execute.assert_called_once_with(
+        "find / -xdev -type f -name authorized_keys "
+        "\\( -perm -0020 -o -perm -0002 \\) "
+        "2>/dev/null | head -100"
+    )
+
+
+def test_detect_writable_authorized_keys_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_writable_authorized_keys_findings(
+        [
+            "/root/.ssh/authorized_keys",
+            "/home/test/.ssh/authorized_keys",
+        ]
+    )
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "Writable Authorized Keys File"
+    assert findings[0]["severity"] == "high"
+    assert findings[0]["description"] == (
+        "Group/world-writable authorized_keys file detected: "
+        "/root/.ssh/authorized_keys"
+    )
+
+    assert findings[1]["description"] == (
+        "Group/world-writable authorized_keys file detected: "
+        "/home/test/.ssh/authorized_keys"
     )

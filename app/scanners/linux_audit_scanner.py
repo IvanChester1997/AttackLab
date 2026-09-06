@@ -365,6 +365,14 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_authorized_keys_findings(authorized_keys_files))
 
+        writable_authorized_keys_files = self.get_writable_authorized_keys_files()
+
+        findings.extend(
+            self.detect_writable_authorized_keys_findings(
+                writable_authorized_keys_files
+            )
+        )
+
         sudoers_entries = self.get_sudoers_entries()
 
         findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
@@ -426,6 +434,45 @@ class LinuxAuditScanner:
         output = self.connector.execute(command)
 
         return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def get_writable_authorized_keys_files(self) -> list[str]:
+        command = (
+            "find / "
+            "-xdev "
+            "-type f "
+            "-name authorized_keys "
+            "\\( -perm -0020 -o -perm -0002 \\) "
+            "2>/dev/null | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_writable_authorized_keys_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = (
+            files
+            if files is not None
+            else self.get_writable_authorized_keys_files()
+        )
+
+        if not files:
+            return []
+
+        return [
+            {
+                "title": "Writable Authorized Keys File",
+                "severity": "high",
+                "description": (
+                    f"Group/world-writable authorized_keys file detected: "
+                    f"{file_path}"
+                ),
+            }
+            for file_path in files
+        ]
 
     def detect_authorized_keys_findings(
         self,
