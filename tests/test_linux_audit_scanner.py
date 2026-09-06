@@ -744,8 +744,8 @@ MaxAuthTries 6
         "",
         "",
         "",
-        "root ALL=(ALL) NOPASSWD: ALL",
         "",
+        "root ALL=(ALL) NOPASSWD: ALL",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -756,3 +756,43 @@ MaxAuthTries 6
 
     assert result.findings[0]["title"] == "NOPASSWD Sudo Rule"
     assert result.findings[0]["severity"] == "high"
+
+
+def test_get_authorized_keys_files():
+    connector = Mock()
+    connector.execute.return_value = """
+/root/.ssh/authorized_keys
+/home/test/.ssh/authorized_keys
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_authorized_keys_files()
+
+    assert files == [
+        "/root/.ssh/authorized_keys",
+        "/home/test/.ssh/authorized_keys",
+    ]
+
+
+def test_detect_authorized_keys_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_authorized_keys_findings(
+        [
+            "/root/.ssh/authorized_keys",
+            "/home/test/.ssh/authorized_keys",
+        ]
+    )
+
+    assert len(findings) == 2
+    assert findings[0]["title"] == "Authorized Keys File Detected"
+    assert findings[0]["severity"] == "info"
+    assert findings[0]["description"] == (
+        "SSH authorized_keys file detected: /root/.ssh/authorized_keys"
+    )
+    assert findings[1]["description"] == (
+        "SSH authorized_keys file detected: /home/test/.ssh/authorized_keys"
+    )

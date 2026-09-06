@@ -361,9 +361,9 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_writable_cron_findings(writable_cron_files))
 
-        sudoers_entries = self.get_sudoers_entries()
+        authorized_keys_files = self.get_authorized_keys_files()
 
-        findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
+        findings.extend(self.detect_authorized_keys_findings(authorized_keys_files))
 
         sudoers_entries = self.get_sudoers_entries()
 
@@ -413,3 +413,34 @@ class LinuxAuditScanner:
             )
 
         return findings
+
+    def get_authorized_keys_files(self) -> list[str]:
+        command = (
+            "find / "
+            "-xdev "
+            "-type f "
+            "-name authorized_keys "
+            "2>/dev/null | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_authorized_keys_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = files if files is not None else self.get_authorized_keys_files()
+
+        if not files:
+            return []
+
+        return [
+            {
+                "title": "Authorized Keys File Detected",
+                "severity": "info",
+                "description": (f"SSH authorized_keys file detected: {file_path}"),
+            }
+            for file_path in files
+        ]
