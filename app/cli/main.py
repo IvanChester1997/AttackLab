@@ -2,6 +2,8 @@ from pathlib import Path
 
 import typer
 
+from app.connectors.ssh import SSHConnector
+from app.scanners.linux_audit_scanner import LinuxAuditScanner
 from app.services.port_scan_service import PortScanService
 from app.services.report_generator import ReportGenerator
 
@@ -31,12 +33,29 @@ def _run_audit(
     target: str,
     ports: str,
     output: Path | None,
+    username: str | None = None,
+    ssh_port: int = 22,
+    key_file: str | None = None,
 ) -> None:
     result = PortScanService.scan(target, ports)
 
     typer.echo(f"Target: {result.target}")
 
-    report = ReportGenerator.generate(result)
+    linux_audit = None
+
+    if username is not None:
+        connector = SSHConnector(
+            host=target,
+            username=username,
+            port=ssh_port,
+            key_file=key_file,
+        )
+        linux_audit = LinuxAuditScanner(connector).run_audit()
+
+    report = ReportGenerator.generate(
+        result,
+        linux_audit=linux_audit,
+    )
 
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -115,11 +134,35 @@ def audit(
         "-o",
         help="Write the security report to a JSON file.",
     ),
+    username: str = typer.Option(
+        "root",
+        "--user",
+        "-u",
+        help="SSH username for Linux audit.",
+    ),
+    ssh_port: int = typer.Option(
+        22,
+        "--ssh-port",
+        help="SSH port for Linux audit.",
+    ),
+    key_file: Path | None = typer.Option(
+        None,
+        "--key",
+        "-k",
+        help="Path to the SSH private key.",
+    ),
 ):
     """
     Run a security audit against a target.
     """
-    _run_audit(target, ports, output)
+    _run_audit(
+        target,
+        ports,
+        output,
+        username=username,
+        ssh_port=ssh_port,
+        key_file=key_file,
+    )
 
 
 @app.command("scan")

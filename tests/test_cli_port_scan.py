@@ -1,9 +1,11 @@
+from pathlib import Path
 from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from app.cli.main import app
 from app.models.finding import Finding, Severity
+from app.models.linux_audit import LinuxAuditResult
 from app.models.port import PortResult, ScanResult
 from app.models.report import ReportSummary, SecurityReport
 
@@ -284,3 +286,86 @@ def test_scan_command_writes_empty_json_report(tmp_path):
     assert '"total_findings": 0' in data
     assert "Report saved to:" in result.output
     assert "No open ports found." in result.output
+
+
+def test_audit_command_runs_linux_audit():
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[],
+    )
+
+    linux_audit = LinuxAuditResult(
+        hostname="test-host",
+        os={"name": "Debian"},
+        users=[],
+        interactive_users=[],
+        uid_zero_accounts=[],
+        service_accounts=[],
+        findings=[
+            {
+                "title": "NOPASSWD Sudo Rule",
+                "severity": "high",
+                "description": "NOPASSWD sudo rule detected.",
+            }
+        ],
+    )
+
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=result_data,
+        linux_audit=linux_audit,
+        findings=[
+            Finding(
+                title="NOPASSWD Sudo Rule",
+                severity=Severity.HIGH,
+                description="NOPASSWD sudo rule detected.",
+            )
+        ],
+        summary=ReportSummary(
+            total_ports=0,
+            total_findings=1,
+            high=1,
+        ),
+    )
+
+    with patch(
+        "app.cli.main.PortScanService.scan",
+        return_value=result_data,
+    ), patch(
+        "app.cli.main.SSHConnector",
+    ) as mock_connector, patch(
+        "app.cli.main.LinuxAuditScanner.run_audit",
+        return_value=linux_audit,
+    ) as mock_linux_audit, patch(
+        "app.cli.main.ReportGenerator.generate",
+        return_value=report,
+    ) as mock_generate:
+        result = runner.invoke(
+            app,
+            [
+                "audit",
+                "127.0.0.1",
+                "--user",
+                "root",
+                "--ssh-port",
+                "2222",
+                "--key",
+                "~/.ssh/id_ed25519",
+            ],
+        )
+
+    assert result.exit_code == 0
+
+    mock_connector.assert_called_once_with(
+        host="127.0.0.1",
+        username="root",
+        port=2222,
+        key_file=Path("~/.ssh/id_ed25519"),
+    )
+    mock_linux_audit.assert_called_once_with()
+
+    generated_scan = mock_generate.call_args.args[0]
+    generated_audit = mock_generate.call_args.kwargs["linux_audit"]
+
+    assert generated_scan is result_data
+    assert generated_audit is linux_audit
