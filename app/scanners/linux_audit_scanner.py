@@ -241,6 +241,7 @@ class LinuxAuditScanner:
                 "title": "PermitRootLogin Enabled",
                 "severity": "high",
                 "description": ("SSH root login is enabled"),
+                "remediation": "Set PermitRootLogin no and use a dedicated administrative account.",
             }
         ]
 
@@ -258,6 +259,7 @@ class LinuxAuditScanner:
                 "title": ("PasswordAuthentication Enabled"),
                 "severity": "medium",
                 "description": ("SSH password authentication " "is enabled"),
+                "remediation": "Disable PasswordAuthentication and use SSH public key authentication.",
             }
         ]
 
@@ -275,6 +277,7 @@ class LinuxAuditScanner:
                 "title": "PubkeyAuthentication Disabled",
                 "severity": "medium",
                 "description": "SSH public key authentication is disabled",
+                "remediation": "Enable PubkeyAuthentication and configure authorized SSH keys.",
             }
         ]
 
@@ -314,6 +317,7 @@ class LinuxAuditScanner:
                         f"SSH MaxAuthTries is set to {value}, "
                         "which allows excessive authentication attempts"
                     ),
+                    "remediation": "Set MaxAuthTries to 6 or lower.",
                 }
             ]
 
