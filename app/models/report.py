@@ -7,6 +7,8 @@ from app.models.port import ScanResult
 class ReportSummary(BaseModel):
     total_ports: int
     total_findings: int
+    risk_score: int = 0
+    risk_level: str = "low"
     critical: int = 0
     high: int = 0
     medium: int = 0

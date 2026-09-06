@@ -11,9 +11,14 @@ class ReportGenerator:
     def generate(scan_result: ScanResult) -> SecurityReport:
         findings = RiskEngine.analyze(scan_result)
 
+        risk_score = RiskEngine.calculate_score(findings)
+        risk_level = RiskEngine.calculate_level(risk_score)
+
         summary = ReportSummary(
             total_ports=len(scan_result.ports),
             total_findings=len(findings),
+            risk_score=risk_score,
+            risk_level=risk_level,
             critical=sum(
                 finding.severity == Severity.CRITICAL
                 for finding in findings

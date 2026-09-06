@@ -90,6 +90,8 @@ def _run_audit(
 
     typer.echo("")
     typer.echo("Summary:")
+    typer.echo(f"Risk score: {report.summary.risk_score}/100")
+    typer.echo(f"Risk level: {report.summary.risk_level}")
     typer.echo(f"Total findings: {report.summary.total_findings}")
     typer.echo(f"Critical: {report.summary.critical}")
     typer.echo(f"High: {report.summary.high}")

@@ -27,6 +27,14 @@ SERVICE_RISK_RULES = {
 
 
 class RiskEngine:
+    SEVERITY_SCORES = {
+        Severity.INFO: 0,
+        Severity.LOW: 2,
+        Severity.MEDIUM: 4,
+        Severity.HIGH: 7,
+        Severity.CRITICAL: 10,
+    }
+
     @staticmethod
     def analyze(scan_result: ScanResult) -> list[Finding]:
         findings = []
@@ -64,3 +72,22 @@ class RiskEngine:
             )
 
         return findings
+
+    @classmethod
+    def calculate_score(cls, findings: list[Finding]) -> int:
+        score = sum(
+            cls.SEVERITY_SCORES[finding.severity]
+            for finding in findings
+        )
+
+        return min(score, 100)
+
+    @classmethod
+    def calculate_level(cls, score: int) -> str:
+        if score >= 70:
+            return "critical"
+        if score >= 40:
+            return "high"
+        if score >= 20:
+            return "medium"
+        return "low"

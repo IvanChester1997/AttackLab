@@ -128,3 +128,62 @@ def test_risk_engine_ignores_ports_without_service():
     findings = RiskEngine.analyze(scan_result)
 
     assert findings == []
+
+
+def test_risk_engine_calculates_score():
+    from app.models.finding import Finding
+
+    findings = [
+        Finding(
+            title="Critical finding",
+            severity=Severity.CRITICAL,
+            description="Critical issue.",
+        ),
+        Finding(
+            title="High finding",
+            severity=Severity.HIGH,
+            description="High issue.",
+        ),
+        Finding(
+            title="Medium finding",
+            severity=Severity.MEDIUM,
+            description="Medium issue.",
+        ),
+        Finding(
+            title="Low finding",
+            severity=Severity.LOW,
+            description="Low issue.",
+        ),
+        Finding(
+            title="Info finding",
+            severity=Severity.INFO,
+            description="Informational finding.",
+        ),
+    ]
+
+    assert RiskEngine.calculate_score(findings) == 23
+
+
+def test_risk_engine_caps_score_at_100():
+    from app.models.finding import Finding
+
+    findings = [
+        Finding(
+            title=f"Critical finding {index}",
+            severity=Severity.CRITICAL,
+            description="Critical issue.",
+        )
+        for index in range(20)
+    ]
+
+    assert RiskEngine.calculate_score(findings) == 100
+
+
+def test_risk_engine_calculates_risk_level():
+    assert RiskEngine.calculate_level(0) == "low"
+    assert RiskEngine.calculate_level(19) == "low"
+    assert RiskEngine.calculate_level(20) == "medium"
+    assert RiskEngine.calculate_level(39) == "medium"
+    assert RiskEngine.calculate_level(40) == "high"
+    assert RiskEngine.calculate_level(69) == "high"
+    assert RiskEngine.calculate_level(70) == "critical"
