@@ -176,6 +176,36 @@ class LinuxAuditScanner:
             for entry in entries
         ]
 
+    def get_writable_cron_files(self) -> list[str]:
+        command = (
+            "find /etc/cron.d /etc/cron.daily "
+            "-type f "
+            "\\( -perm -0002 -o -perm -0020 \\) "
+            "2>/dev/null | sort | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_writable_cron_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = files if files is not None else self.get_writable_cron_files()
+
+        if not files:
+            return []
+
+        return [
+            {
+                "title": "Writable Cron File",
+                "severity": "high",
+                "description": (f"Writable cron file detected: {file_path}"),
+            }
+            for file_path in files
+        ]
+
     def detect_world_writable_findings(
         self,
         files: list[str] | None = None,
@@ -326,6 +356,10 @@ class LinuxAuditScanner:
         cron_entries = self.get_cron_entries()
 
         findings.extend(self.detect_cron_findings(cron_entries))
+
+        writable_cron_files = self.get_writable_cron_files()
+
+        findings.extend(self.detect_writable_cron_findings(writable_cron_files))
 
         return LinuxAuditResult(
             hostname=hostname,

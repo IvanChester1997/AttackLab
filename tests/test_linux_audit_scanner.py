@@ -443,6 +443,7 @@ def test_run_audit_includes_world_writable_findings():
     """.strip(),
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -521,6 +522,7 @@ MaxAuthTries 6
 /usr/bin/passwd
 """.strip(),
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -596,6 +598,7 @@ MaxAuthTries 6
         """
 /etc/cron.d/e2scrub_all
 """.strip(),
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -606,3 +609,71 @@ MaxAuthTries 6
 
     assert result.findings[0]["title"] == "Cron Job Detected"
     assert result.findings[0]["severity"] == "low"
+
+
+def test_get_writable_cron_files():
+    connector = Mock()
+
+    connector.execute.return_value = """
+/etc/cron.d/backdoor
+/etc/cron.daily/update.sh
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_writable_cron_files()
+
+    assert files == [
+        "/etc/cron.d/backdoor",
+        "/etc/cron.daily/update.sh",
+    ]
+
+
+def test_detect_writable_cron_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_writable_cron_findings(
+        [
+            "/etc/cron.d/backdoor",
+        ]
+    )
+
+    assert len(findings) == 1
+    assert findings[0]["title"] == "Writable Cron File"
+    assert findings[0]["severity"] == "high"
+
+
+def test_run_audit_includes_writable_cron_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "",
+        "",
+        "",
+        "/etc/cron.d/backdoor",
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+
+    assert result.findings[0]["title"] == "Writable Cron File"
+    assert result.findings[0]["severity"] == "high"
