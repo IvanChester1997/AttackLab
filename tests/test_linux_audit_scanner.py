@@ -56,6 +56,7 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "root:x:0:0:root:/root:/bin/bash",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -259,6 +260,8 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         passwd_content,
         "",
         "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -444,6 +447,8 @@ def test_run_audit_includes_world_writable_findings():
         "",
         "",
         "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -523,6 +528,8 @@ MaxAuthTries 6
 """.strip(),
         "",
         "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -599,6 +606,8 @@ MaxAuthTries 6
 /etc/cron.d/e2scrub_all
 """.strip(),
         "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -667,6 +676,8 @@ MaxAuthTries 6
         "",
         "",
         "/etc/cron.d/backdoor",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -676,4 +687,72 @@ MaxAuthTries 6
     assert len(result.findings) == 1
 
     assert result.findings[0]["title"] == "Writable Cron File"
+    assert result.findings[0]["severity"] == "high"
+
+
+def test_get_sudoers_entries():
+    connector = Mock()
+
+    connector.execute.return_value = """
+root ALL=(ALL) NOPASSWD: ALL
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    entries = scanner.get_sudoers_entries()
+
+    assert entries == [
+        "root ALL=(ALL) NOPASSWD: ALL",
+    ]
+
+
+def test_detect_nopasswd_sudo_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_nopasswd_sudo_findings(
+        [
+            "root ALL=(ALL) NOPASSWD: ALL",
+        ]
+    )
+
+    assert len(findings) == 1
+    assert findings[0]["title"] == "NOPASSWD Sudo Rule"
+    assert findings[0]["severity"] == "high"
+
+
+def test_run_audit_includes_nopasswd_sudo_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "",
+        "",
+        "",
+        "",
+        "root ALL=(ALL) NOPASSWD: ALL",
+        "",
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+
+    assert result.findings[0]["title"] == "NOPASSWD Sudo Rule"
     assert result.findings[0]["severity"] == "high"

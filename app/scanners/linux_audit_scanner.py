@@ -361,6 +361,14 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_writable_cron_findings(writable_cron_files))
 
+        sudoers_entries = self.get_sudoers_entries()
+
+        findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
+
+        sudoers_entries = self.get_sudoers_entries()
+
+        findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
+
         return LinuxAuditResult(
             hostname=hostname,
             os=os_info,
@@ -370,3 +378,38 @@ class LinuxAuditScanner:
             service_accounts=service_accounts,
             findings=findings,
         )
+
+    def get_sudoers_entries(self) -> list[str]:
+        command = (
+            "(cat /etc/sudoers 2>/dev/null; "
+            "cat /etc/sudoers.d/* 2>/dev/null) "
+            "| grep -v '^#' "
+            "| grep -v '^$' "
+            "| head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_nopasswd_sudo_findings(
+        self,
+        entries: list[str] | None = None,
+    ) -> list[dict]:
+        entries = entries if entries is not None else self.get_sudoers_entries()
+
+        findings = []
+
+        for entry in entries:
+            if "NOPASSWD:" not in entry:
+                continue
+
+            findings.append(
+                {
+                    "title": "NOPASSWD Sudo Rule",
+                    "severity": "high",
+                    "description": (f"NOPASSWD sudo rule detected: {entry}"),
+                }
+            )
+
+        return findings
