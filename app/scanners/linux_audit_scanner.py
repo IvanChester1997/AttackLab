@@ -420,6 +420,10 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_ssh_host_key_findings(ssh_host_keys))
 
+        firewall_ruleset = self.get_firewall_ruleset()
+
+        findings.extend(self.detect_firewall_findings(firewall_ruleset))
+
         listening_tcp_ports = self.get_listening_tcp_ports()
 
         findings.extend(
@@ -568,6 +572,45 @@ class LinuxAuditScanner:
             }
             for file_path in files
         ]
+
+    def get_firewall_ruleset(self) -> list[str]:
+        output = self.connector.execute("nft list ruleset")
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_firewall_findings(
+        self,
+        ruleset: list[str] | None = None,
+    ) -> list[dict]:
+        ruleset = ruleset if ruleset is not None else self.get_firewall_ruleset()
+
+        if not ruleset:
+            return []
+
+        in_input_chain = False
+
+        for line in ruleset:
+            normalized = line.lower()
+
+            if normalized.startswith("chain "):
+                chain_name = normalized.split()[1]
+                in_input_chain = chain_name == "input"
+                continue
+
+            if in_input_chain and "policy accept" in normalized:
+                return [
+                    {
+                        "title": "Firewall Input Policy Accept",
+                        "severity": "high",
+                        "description": "Firewall input policy is set to accept",
+                        "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
+                    }
+                ]
+
+            if in_input_chain and normalized == "}":
+                in_input_chain = False
+
+        return []
 
     def get_listening_tcp_ports(self) -> list[str]:
         command = "ss -lnt " "| tail -n +2 " "| head -100"

@@ -60,6 +60,7 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "",
         "",
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -322,6 +323,7 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         "",
         "",
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -511,6 +513,7 @@ MaxAuthTries 6
         "",  # writabl_authorized_keys
         "",  # sudoers
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -594,6 +597,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -674,6 +678,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -748,6 +753,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -820,6 +826,7 @@ def test_run_audit_includes_nopasswd_sudo_findings():
         "",  # writable_authorized_keys
         "root ALL=(ALL) NOPASSWD: ALL",  # sudoers
         "",  # ssh_host_keys
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -991,6 +998,7 @@ MaxAuthTries 6
         """
 /etc/ssh/ssh_host_rsa_key
 """.strip(),
+        "",  # firewall_ruleset
         "",  # listening_tcp_ports
     ]
 
@@ -1093,5 +1101,118 @@ def test_run_audit_includes_listening_tcp_port_findings():
                 "Listening TCP port detected: "
                 "tcp LISTEN 0 128 0.0.0.0:22"
             ),
+        }
+    ]
+
+
+def test_get_firewall_ruleset():
+    connector = Mock()
+    connector.execute.return_value = """
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+    }
+}
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    ruleset = scanner.get_firewall_ruleset()
+
+    assert ruleset == [
+        "table inet filter {",
+        "chain input {",
+        "type filter hook input priority filter; policy drop;",
+        "}",
+        "}",
+    ]
+
+
+def test_detect_firewall_findings_policy_accept():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    ruleset = [
+        "table inet filter {",
+        "chain input {",
+        "type filter hook input priority filter; policy accept;",
+        "}",
+        "}",
+    ]
+
+    findings = scanner.detect_firewall_findings(ruleset)
+
+    assert findings == [
+        {
+            "title": "Firewall Input Policy Accept",
+            "severity": "high",
+            "description": "Firewall input policy is set to accept",
+            "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
+        }
+    ]
+
+
+def test_detect_firewall_findings_policy_drop():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    ruleset = [
+        "table inet filter {",
+        "chain input {",
+        "type filter hook input priority filter; policy drop;",
+        "}",
+        "}",
+    ]
+
+    findings = scanner.detect_firewall_findings(ruleset)
+
+    assert findings == []
+
+
+def test_detect_firewall_findings_empty():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_firewall_findings([])
+
+    assert findings == []
+
+
+def test_run_audit_includes_firewall_findings():
+    connector = Mock()
+
+    def execute(command):
+        if command == "hostname":
+            return "test-host"
+        if command == "cat /etc/os-release":
+            return 'NAME="Test Linux"'
+        if command == "nft list ruleset":
+            return """
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy accept;
+    }
+}
+""".strip()
+        return ""
+
+    connector.execute.side_effect = execute
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    firewall_findings = [
+        finding
+        for finding in result.findings
+        if finding["title"] == "Firewall Input Policy Accept"
+    ]
+
+    assert firewall_findings == [
+        {
+            "title": "Firewall Input Policy Accept",
+            "severity": "high",
+            "description": "Firewall input policy is set to accept",
+            "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
         }
     ]
