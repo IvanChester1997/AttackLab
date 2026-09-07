@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.models.finding import Finding
+
 
 @dataclass
 class LinuxAuditResult:
@@ -11,4 +13,4 @@ class LinuxAuditResult:
     uid_zero_accounts: list
     service_accounts: list
 
-    findings: list
+    findings: list[Finding]

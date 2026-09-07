@@ -303,11 +303,11 @@ def test_audit_command_runs_linux_audit():
         uid_zero_accounts=[],
         service_accounts=[],
         findings=[
-            {
-                "title": "NOPASSWD Sudo Rule",
-                "severity": "high",
-                "description": "NOPASSWD sudo rule detected.",
-            }
+            Finding(
+                title="NOPASSWD Sudo Rule",
+                severity=Severity.HIGH,
+                description="NOPASSWD sudo rule detected.",
+            )
         ],
     )
 

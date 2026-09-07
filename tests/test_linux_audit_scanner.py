@@ -211,12 +211,12 @@ def test_detect_docker_group_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "User In Docker Group"
-    assert findings[0]["severity"] == "high"
-    assert "user1" in findings[0]["description"]
+    assert findings[0].title == "User In Docker Group"
+    assert findings[0].severity == "high"
+    assert "user1" in findings[0].description
 
-    assert findings[1]["title"] == "User In Docker Group"
-    assert "user2" in findings[1]["description"]
+    assert findings[1].title == "User In Docker Group"
+    assert "user2" in findings[1].description
 
 
 def test_get_sudo_group_members():
@@ -248,12 +248,12 @@ def test_detect_sudo_group_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "User In Privileged Group"
-    assert findings[0]["severity"] == "medium"
-    assert "user1" in findings[0]["description"]
+    assert findings[0].title == "User In Privileged Group"
+    assert findings[0].severity == "medium"
+    assert "user1" in findings[0].description
 
-    assert findings[1]["title"] == "User In Privileged Group"
-    assert "user2" in findings[1]["description"]
+    assert findings[1].title == "User In Privileged Group"
+    assert "user2" in findings[1].description
 
 
 def test_run_audit_includes_sudo_group_findings():
@@ -296,9 +296,9 @@ MaxAuthTries 6
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "User In Privileged Group"
-    assert result.findings[0]["severity"] == "medium"
-    assert "user1" in result.findings[0]["description"]
+    assert result.findings[0].title == "User In Privileged Group"
+    assert result.findings[0].severity == "medium"
+    assert "user1" in result.findings[0].description
 
 
 def test_detect_additional_uid_zero_accounts():
@@ -316,8 +316,8 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
 
     assert len(findings) == 1
 
-    assert findings[0]["severity"] == "high"
-    assert "admin" in findings[0]["description"]
+    assert findings[0].severity == "high"
+    assert "admin" in findings[0].description
 
 
 def test_detect_permit_root_login_enabled():
@@ -335,8 +335,8 @@ PasswordAuthentication no
 
     assert len(findings) == 1
 
-    assert findings[0]["severity"] == "high"
-    assert "PermitRootLogin" in findings[0]["title"]
+    assert findings[0].severity == "high"
+    assert "PermitRootLogin" in findings[0].title
 
 
 def test_detect_password_authentication_enabled():
@@ -354,9 +354,9 @@ PasswordAuthentication yes
 
     assert len(findings) == 1
 
-    assert findings[0]["severity"] == "medium"
+    assert findings[0].severity == "medium"
 
-    assert "PasswordAuthentication" in findings[0]["title"]
+    assert "PasswordAuthentication" in findings[0].title
 
 
 def test_run_ssh_audit():
@@ -373,7 +373,7 @@ PasswordAuthentication yes
 
     assert len(findings) == 2
 
-    titles = [f["title"] for f in findings]
+    titles = [f.title for f in findings]
 
     assert "PermitRootLogin Enabled" in titles
     assert "PasswordAuthentication Enabled" in titles
@@ -443,8 +443,8 @@ PubkeyAuthentication no
     findings = scanner.detect_pubkey_authentication_findings()
 
     assert len(findings) == 1
-    assert findings[0]["severity"] == "medium"
-    assert "PubkeyAuthentication" in findings[0]["title"]
+    assert findings[0].severity == "medium"
+    assert "PubkeyAuthentication" in findings[0].title
 
 
 def test_run_ssh_audit_reads_sshd_config_once():
@@ -498,8 +498,8 @@ MaxAuthTries 10
     findings = scanner.detect_max_auth_tries_findings()
 
     assert len(findings) == 1
-    assert findings[0]["severity"] == "medium"
-    assert "MaxAuthTries" in findings[0]["title"]
+    assert findings[0].severity == "medium"
+    assert "MaxAuthTries" in findings[0].title
 
 
 def test_detect_max_auth_tries_safe():
@@ -516,7 +516,7 @@ MaxAuthTries 6
 
     findings = scanner.detect_max_auth_tries_findings()
 
-    assert findings == []
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
 
 
 def test_run_ssh_audit_reads_sshd_config_once_with_all_checks():
@@ -569,13 +569,13 @@ def test_detect_world_writable_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "World-Writable File"
-    assert findings[0]["severity"] == "medium"
-    assert "/tmp/world-writable.txt" in findings[0]["description"]
+    assert findings[0].title == "World-Writable File"
+    assert findings[0].severity == "medium"
+    assert "/tmp/world-writable.txt" in findings[0].description
 
-    assert findings[1]["title"] == "World-Writable File"
-    assert findings[1]["severity"] == "medium"
-    assert "/var/tmp/test.log" in findings[1]["description"]
+    assert findings[1].title == "World-Writable File"
+    assert findings[1].severity == "medium"
+    assert "/var/tmp/test.log" in findings[1].description
 
 
 def test_run_audit_includes_world_writable_findings():
@@ -617,9 +617,9 @@ MaxAuthTries 6
     result = scanner.run_audit()
 
     assert len(result.findings) == 1
-    assert result.findings[0]["title"] == "World-Writable File"
-    assert result.findings[0]["severity"] == "medium"
-    assert "/tmp/world-writable.txt" in result.findings[0]["description"]
+    assert result.findings[0].title == "World-Writable File"
+    assert result.findings[0].severity == "medium"
+    assert "/tmp/world-writable.txt" in result.findings[0].description
 
 
 def test_get_suid_sgid_files():
@@ -656,13 +656,13 @@ def test_detect_suid_sgid_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "SUID/SGID File"
-    assert findings[0]["severity"] == "medium"
-    assert "/usr/bin/passwd" in findings[0]["description"]
+    assert findings[0].title == "SUID/SGID File"
+    assert findings[0].severity == "medium"
+    assert "/usr/bin/passwd" in findings[0].description
 
-    assert findings[1]["title"] == "SUID/SGID File"
-    assert findings[1]["severity"] == "medium"
-    assert "/usr/bin/su" in findings[1]["description"]
+    assert findings[1].title == "SUID/SGID File"
+    assert findings[1].severity == "medium"
+    assert "/usr/bin/su" in findings[1].description
 
 
 def test_run_audit_includes_suid_sgid_findings():
@@ -705,9 +705,9 @@ MaxAuthTries 6
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "SUID/SGID File"
-    assert result.findings[0]["severity"] == "medium"
-    assert "/usr/bin/passwd" in result.findings[0]["description"]
+    assert result.findings[0].title == "SUID/SGID File"
+    assert result.findings[0].severity == "medium"
+    assert "/usr/bin/passwd" in result.findings[0].description
 
 
 def test_get_cron_entries():
@@ -744,9 +744,9 @@ def test_detect_cron_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "Cron Job Detected"
-    assert findings[0]["severity"] == "low"
-    assert "/etc/cron.d/e2scrub_all" in findings[0]["description"]
+    assert findings[0].title == "Cron Job Detected"
+    assert findings[0].severity == "low"
+    assert "/etc/cron.d/e2scrub_all" in findings[0].description
 
 
 def test_run_audit_includes_cron_findings():
@@ -789,8 +789,8 @@ MaxAuthTries 6
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "Cron Job Detected"
-    assert result.findings[0]["severity"] == "low"
+    assert result.findings[0].title == "Cron Job Detected"
+    assert result.findings[0].severity == "low"
 
 
 def test_get_writable_cron_files():
@@ -823,8 +823,8 @@ def test_detect_writable_cron_findings():
     )
 
     assert len(findings) == 1
-    assert findings[0]["title"] == "Writable Cron File"
-    assert findings[0]["severity"] == "high"
+    assert findings[0].title == "Writable Cron File"
+    assert findings[0].severity == "high"
 
 
 def test_run_audit_includes_writable_cron_findings():
@@ -867,8 +867,8 @@ MaxAuthTries 6
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "Writable Cron File"
-    assert result.findings[0]["severity"] == "high"
+    assert result.findings[0].title == "Writable Cron File"
+    assert result.findings[0].severity == "high"
 
 
 def test_get_sudoers_entries():
@@ -899,8 +899,8 @@ def test_detect_nopasswd_sudo_findings():
     )
 
     assert len(findings) == 1
-    assert findings[0]["title"] == "NOPASSWD Sudo Rule"
-    assert findings[0]["severity"] == "high"
+    assert findings[0].title == "NOPASSWD Sudo Rule"
+    assert findings[0].severity == "high"
 
 
 def test_run_audit_includes_nopasswd_sudo_findings():
@@ -944,8 +944,8 @@ def test_run_audit_includes_nopasswd_sudo_findings():
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "NOPASSWD Sudo Rule"
-    assert result.findings[0]["severity"] == "high"
+    assert result.findings[0].title == "NOPASSWD Sudo Rule"
+    assert result.findings[0].severity == "high"
 
 
 def test_get_authorized_keys_files():
@@ -978,12 +978,12 @@ def test_detect_authorized_keys_findings():
     )
 
     assert len(findings) == 2
-    assert findings[0]["title"] == "Authorized Keys File Detected"
-    assert findings[0]["severity"] == "info"
-    assert findings[0]["description"] == (
+    assert findings[0].title == "Authorized Keys File Detected"
+    assert findings[0].severity == "info"
+    assert findings[0].description == (
         "SSH authorized_keys file detected: /root/.ssh/authorized_keys"
     )
-    assert findings[1]["description"] == (
+    assert findings[1].description == (
         "SSH authorized_keys file detected: /home/test/.ssh/authorized_keys"
     )
 
@@ -1026,14 +1026,14 @@ def test_detect_writable_authorized_keys_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "Writable Authorized Keys File"
-    assert findings[0]["severity"] == "high"
-    assert findings[0]["description"] == (
+    assert findings[0].title == "Writable Authorized Keys File"
+    assert findings[0].severity == "high"
+    assert findings[0].description == (
         "Group/world-writable authorized_keys file detected: "
         "/root/.ssh/authorized_keys"
     )
 
-    assert findings[1]["description"] == (
+    assert findings[1].description == (
         "Group/world-writable authorized_keys file detected: "
         "/home/test/.ssh/authorized_keys"
     )
@@ -1071,10 +1071,10 @@ def test_detect_ssh_host_key_findings():
 
     assert len(findings) == 2
 
-    assert findings[0]["title"] == "SSH Host Key Detected"
-    assert findings[0]["severity"] == "info"
+    assert findings[0].title == "SSH Host Key Detected"
+    assert findings[0].severity == "info"
 
-    assert findings[1]["title"] == "SSH Host Key Detected"
+    assert findings[1].title == "SSH Host Key Detected"
 
 
 def test_run_audit_includes_ssh_host_key_findings():
@@ -1120,9 +1120,9 @@ MaxAuthTries 6
 
     assert len(result.findings) == 1
 
-    assert result.findings[0]["title"] == "SSH Host Key Detected"
-    assert result.findings[0]["severity"] == "info"
-    assert "/etc/ssh/ssh_host_rsa_key" in result.findings[0]["description"]
+    assert result.findings[0].title == "SSH Host Key Detected"
+    assert result.findings[0].severity == "info"
+    assert "/etc/ssh/ssh_host_rsa_key" in result.findings[0].description
 
 
 def test_get_listening_tcp_ports():
@@ -1154,7 +1154,7 @@ def test_detect_listening_tcp_port_findings():
 
     findings = scanner.detect_listening_tcp_port_findings(ports)
 
-    assert findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
         {
             "title": "Listening TCP Port Detected",
             "severity": "info",
@@ -1178,7 +1178,7 @@ def test_detect_listening_tcp_port_findings_empty():
 
     findings = scanner.detect_listening_tcp_port_findings([])
 
-    assert findings == []
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
 
 
 def test_run_audit_includes_listening_tcp_port_findings():
@@ -1202,10 +1202,10 @@ def test_run_audit_includes_listening_tcp_port_findings():
     listening_findings = [
         finding
         for finding in result.findings
-        if finding["title"] == "Listening TCP Port Detected"
+        if finding.title == "Listening TCP Port Detected"
     ]
 
-    assert listening_findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in listening_findings] == [
         {
             "title": "Listening TCP Port Detected",
             "severity": "info",
@@ -1245,7 +1245,7 @@ def test_detect_listening_udp_port_findings():
 
     findings = scanner.detect_listening_udp_port_findings(ports)
 
-    assert findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
         {
             "title": "Listening UDP Port Detected",
             "severity": "info",
@@ -1269,7 +1269,7 @@ def test_detect_listening_udp_port_findings_empty():
 
     findings = scanner.detect_listening_udp_port_findings([])
 
-    assert findings == []
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
 
 
 def test_run_audit_includes_listening_udp_port_findings():
@@ -1296,10 +1296,10 @@ def test_run_audit_includes_listening_udp_port_findings():
     udp_findings = [
         finding
         for finding in result.findings
-        if finding["title"] == "Listening UDP Port Detected"
+        if finding.title == "Listening UDP Port Detected"
     ]
 
-    assert udp_findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in udp_findings] == [
         {
             "title": "Listening UDP Port Detected",
             "severity": "info",
@@ -1347,7 +1347,7 @@ def test_detect_firewall_findings_policy_accept():
 
     findings = scanner.detect_firewall_findings(ruleset)
 
-    assert findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
         {
             "title": "Firewall Input Policy Accept",
             "severity": "high",
@@ -1371,7 +1371,7 @@ def test_detect_firewall_findings_policy_drop():
 
     findings = scanner.detect_firewall_findings(ruleset)
 
-    assert findings == []
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
 
 
 def test_detect_firewall_findings_empty():
@@ -1380,7 +1380,7 @@ def test_detect_firewall_findings_empty():
 
     findings = scanner.detect_firewall_findings([])
 
-    assert findings == []
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
 
 
 def test_run_audit_includes_firewall_findings():
@@ -1410,10 +1410,10 @@ table inet filter {
     firewall_findings = [
         finding
         for finding in result.findings
-        if finding["title"] == "Firewall Input Policy Accept"
+        if finding.title == "Firewall Input Policy Accept"
     ]
 
-    assert firewall_findings == [
+    assert [finding.model_dump(mode="json", exclude_none=True) for finding in firewall_findings] == [
         {
             "title": "Firewall Input Policy Accept",
             "severity": "high",

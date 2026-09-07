@@ -1,4 +1,4 @@
-from app.models.finding import Severity
+from app.models.finding import Finding, Severity
 from app.models.port import PortResult, ScanResult
 from app.models.service import ServiceInfo
 from app.services.report_generator import ReportGenerator
@@ -141,11 +141,11 @@ def test_report_generator_includes_linux_audit_findings():
         uid_zero_accounts=[],
         service_accounts=[],
         findings=[
-            {
-                "title": "NOPASSWD Sudo Rule",
-                "severity": "high",
-                "description": "NOPASSWD sudo rule detected: %admin ALL=(ALL) NOPASSWD: ALL",
-            }
+            Finding(
+                title="NOPASSWD Sudo Rule",
+                severity=Severity.HIGH,
+                description="NOPASSWD sudo rule detected: %admin ALL=(ALL) NOPASSWD: ALL",
+            )
         ],
     )
 
@@ -183,11 +183,11 @@ def test_report_generator_includes_linux_findings_in_risk_score():
         uid_zero_accounts=[],
         service_accounts=[],
         findings=[
-            {
-                "title": "NOPASSWD Sudo Rule",
-                "severity": "high",
-                "description": "NOPASSWD sudo rule detected.",
-            }
+            Finding(
+                title="NOPASSWD Sudo Rule",
+                severity=Severity.HIGH,
+                description="NOPASSWD sudo rule detected.",
+            )
         ],
     )
 

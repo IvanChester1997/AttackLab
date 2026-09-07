@@ -1,4 +1,5 @@
 from app.connectors.ssh import SSHConnector
+from app.models.finding import Finding, Severity
 from app.models.linux_audit import LinuxAuditResult
 from app.models.linux_user import LinuxUser
 
@@ -94,18 +95,18 @@ class LinuxAuditScanner:
     def detect_docker_group_findings(
         self,
         members: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         members = members if members is not None else self.get_docker_group_members()
 
         return [
-            {
-                "title": "User In Docker Group",
-                "severity": "high",
-                "description": (
+            Finding(
+                title="User In Docker Group",
+                severity=Severity.HIGH,
+                description=(
                     f"User '{member}' is a member of docker group "
                     "and may obtain root privileges."
                 ),
-            }
+            )
             for member in members
         ]
 
@@ -125,25 +126,25 @@ class LinuxAuditScanner:
     def detect_sudo_group_findings(
         self,
         members: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         members = members if members is not None else self.get_sudo_group_members()
 
         return [
-            {
-                "title": "User In Privileged Group",
-                "severity": "medium",
-                "description": (
+            Finding(
+                title="User In Privileged Group",
+                severity=Severity.MEDIUM,
+                description=(
                     f"User '{member}' is a member of sudo/wheel group "
                     "and has elevated privileges."
                 ),
-            }
+            )
             for member in members
         ]
 
     def detect_uid_zero_findings(
         self,
         users: list[LinuxUser] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         users = users if users is not None else self.get_users()
         uid_zero_users = [user for user in users if user.uid == 0]
 
@@ -153,13 +154,13 @@ class LinuxAuditScanner:
             return []
 
         return [
-            {
-                "title": "Additional UID 0 Account",
-                "severity": "high",
-                "description": (
+            Finding(
+                title="Additional UID 0 Account",
+                severity=Severity.HIGH,
+                description=(
                     f"Additional UID 0 account detected: " f"{user.username}"
                 ),
-            }
+            )
             for user in extra_users
         ]
 
@@ -196,18 +197,18 @@ class LinuxAuditScanner:
     def detect_suid_sgid_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = files if files is not None else self.get_suid_sgid_files()
 
         if not files:
             return []
 
         return [
-            {
-                "title": "SUID/SGID File",
-                "severity": "medium",
-                "description": (f"SUID/SGID file detected: {file_path}"),
-            }
+            Finding(
+                title="SUID/SGID File",
+                severity=Severity.MEDIUM,
+                description=f"SUID/SGID file detected: {file_path}",
+            )
             for file_path in files
         ]
 
@@ -223,18 +224,18 @@ class LinuxAuditScanner:
     def detect_cron_findings(
         self,
         entries: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         entries = entries if entries is not None else self.get_cron_entries()
 
         if not entries:
             return []
 
         return [
-            {
-                "title": "Cron Job Detected",
-                "severity": "low",
-                "description": (f"Cron entry detected: {entry}"),
-            }
+            Finding(
+                title="Cron Job Detected",
+                severity=Severity.LOW,
+                description=f"Cron entry detected: {entry}",
+            )
             for entry in entries
         ]
 
@@ -253,36 +254,36 @@ class LinuxAuditScanner:
     def detect_writable_cron_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = files if files is not None else self.get_writable_cron_files()
 
         if not files:
             return []
 
         return [
-            {
-                "title": "Writable Cron File",
-                "severity": "high",
-                "description": (f"Writable cron file detected: {file_path}"),
-            }
+            Finding(
+                title="Writable Cron File",
+                severity=Severity.HIGH,
+                description=f"Writable cron file detected: {file_path}",
+            )
             for file_path in files
         ]
 
     def detect_world_writable_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = files if files is not None else self.get_world_writable_files()
 
         if not files:
             return []
 
         return [
-            {
-                "title": "World-Writable File",
-                "severity": "medium",
-                "description": (f"World-writable file detected: {file_path}"),
-            }
+            Finding(
+                title="World-Writable File",
+                severity=Severity.MEDIUM,
+                description=f"World-writable file detected: {file_path}",
+            )
             for file_path in files
         ]
 
@@ -292,61 +293,61 @@ class LinuxAuditScanner:
     def detect_ssh_root_login_findings(
         self,
         config: str | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         config = config if config is not None else self.get_sshd_config()
 
         if "PermitRootLogin yes" not in config:
             return []
 
         return [
-            {
-                "title": "PermitRootLogin Enabled",
-                "severity": "high",
-                "description": ("SSH root login is enabled"),
-                "remediation": "Set PermitRootLogin no and use a dedicated administrative account.",
-            }
+            Finding(
+                title="PermitRootLogin Enabled",
+                severity=Severity.HIGH,
+                description="SSH root login is enabled",
+                remediation="Set PermitRootLogin no and use a dedicated administrative account.",
+            )
         ]
 
     def detect_password_authentication_findings(
         self,
         config: str | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         config = config if config is not None else self.get_sshd_config()
 
         if "PasswordAuthentication yes" not in config:
             return []
 
         return [
-            {
-                "title": ("PasswordAuthentication Enabled"),
-                "severity": "medium",
-                "description": ("SSH password authentication " "is enabled"),
-                "remediation": "Disable PasswordAuthentication and use SSH public key authentication.",
-            }
+            Finding(
+                title="PasswordAuthentication Enabled",
+                severity=Severity.MEDIUM,
+                description="SSH password authentication is enabled",
+                remediation="Disable PasswordAuthentication and use SSH public key authentication.",
+            )
         ]
 
     def detect_pubkey_authentication_findings(
         self,
         config: str | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         config = config if config is not None else self.get_sshd_config()
 
         if "PubkeyAuthentication no" not in config:
             return []
 
         return [
-            {
-                "title": "PubkeyAuthentication Disabled",
-                "severity": "medium",
-                "description": "SSH public key authentication is disabled",
-                "remediation": "Enable PubkeyAuthentication and configure authorized SSH keys.",
-            }
+            Finding(
+                title="PubkeyAuthentication Disabled",
+                severity=Severity.MEDIUM,
+                description="SSH public key authentication is disabled",
+                remediation="Enable PubkeyAuthentication and configure authorized SSH keys.",
+            )
         ]
 
     def detect_max_auth_tries_findings(
         self,
         config: str | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         config = config if config is not None else self.get_sshd_config()
 
         for line in config.splitlines():
@@ -372,20 +373,20 @@ class LinuxAuditScanner:
                 return []
 
             return [
-                {
-                    "title": "MaxAuthTries Too High",
-                    "severity": "medium",
-                    "description": (
+                Finding(
+                    title="MaxAuthTries Too High",
+                    severity=Severity.MEDIUM,
+                    description=(
                         f"SSH MaxAuthTries is set to {value}, "
                         "which allows excessive authentication attempts"
                     ),
-                    "remediation": "Set MaxAuthTries to 6 or lower.",
-                }
+                    remediation="Set MaxAuthTries to 6 or lower.",
+                )
             ]
 
         return []
 
-    def run_ssh_audit(self) -> list[dict]:
+    def run_ssh_audit(self) -> list[Finding]:
         config = self.get_sshd_config()
 
         findings = []
@@ -499,7 +500,7 @@ class LinuxAuditScanner:
     def detect_nopasswd_sudo_findings(
         self,
         entries: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         entries = entries if entries is not None else self.get_sudoers_entries()
 
         findings = []
@@ -509,11 +510,11 @@ class LinuxAuditScanner:
                 continue
 
             findings.append(
-                {
-                    "title": "NOPASSWD Sudo Rule",
-                    "severity": "high",
-                    "description": (f"NOPASSWD sudo rule detected: {entry}"),
-                }
+                Finding(
+                    title="NOPASSWD Sudo Rule",
+                    severity=Severity.HIGH,
+                    description=f"NOPASSWD sudo rule detected: {entry}",
+                )
             )
 
         return findings
@@ -548,7 +549,7 @@ class LinuxAuditScanner:
     def detect_writable_authorized_keys_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = (
             files if files is not None else self.get_writable_authorized_keys_files()
         )
@@ -557,32 +558,32 @@ class LinuxAuditScanner:
             return []
 
         return [
-            {
-                "title": "Writable Authorized Keys File",
-                "severity": "high",
-                "description": (
+            Finding(
+                title="Writable Authorized Keys File",
+                severity=Severity.HIGH,
+                description=(
                     f"Group/world-writable authorized_keys file detected: "
                     f"{file_path}"
                 ),
-            }
+            )
             for file_path in files
         ]
 
     def detect_authorized_keys_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = files if files is not None else self.get_authorized_keys_files()
 
         if not files:
             return []
 
         return [
-            {
-                "title": "Authorized Keys File Detected",
-                "severity": "info",
-                "description": (f"SSH authorized_keys file detected: {file_path}"),
-            }
+            Finding(
+                title="Authorized Keys File Detected",
+                severity=Severity.INFO,
+                description=f"SSH authorized_keys file detected: {file_path}",
+            )
             for file_path in files
         ]
 
@@ -601,18 +602,18 @@ class LinuxAuditScanner:
     def detect_ssh_host_key_findings(
         self,
         files: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         files = files if files is not None else self.get_ssh_host_keys()
 
         if not files:
             return []
 
         return [
-            {
-                "title": "SSH Host Key Detected",
-                "severity": "info",
-                "description": (f"SSH host private key detected: {file_path}"),
-            }
+            Finding(
+                title="SSH Host Key Detected",
+                severity=Severity.INFO,
+                description=f"SSH host private key detected: {file_path}",
+            )
             for file_path in files
         ]
 
@@ -624,7 +625,7 @@ class LinuxAuditScanner:
     def detect_firewall_findings(
         self,
         ruleset: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         ruleset = ruleset if ruleset is not None else self.get_firewall_ruleset()
 
         if not ruleset:
@@ -642,12 +643,12 @@ class LinuxAuditScanner:
 
             if in_input_chain and "policy accept" in normalized:
                 return [
-                    {
-                        "title": "Firewall Input Policy Accept",
-                        "severity": "high",
-                        "description": "Firewall input policy is set to accept",
-                        "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
-                    }
+                    Finding(
+                        title="Firewall Input Policy Accept",
+                        severity=Severity.HIGH,
+                        description="Firewall input policy is set to accept",
+                        remediation="Configure a restrictive inbound firewall policy and explicitly allow required services.",
+                    )
                 ]
 
             if in_input_chain and normalized == "}":
@@ -682,7 +683,7 @@ class LinuxAuditScanner:
     def detect_password_policy_findings(
         self,
         policy: dict[str, str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         policy = policy if policy is not None else self.get_password_policy()
 
         findings = []
@@ -692,14 +693,14 @@ class LinuxAuditScanner:
         if max_days and max_days.isdigit():
             if int(max_days) > 90:
                 findings.append(
-                    {
-                        "title": "Weak Password Expiration Policy",
-                        "severity": "medium",
-                        "description": (
+                    Finding(
+                        title="Weak Password Expiration Policy",
+                        severity=Severity.MEDIUM,
+                        description=(
                             f"PASS_MAX_DAYS is set to {max_days}. "
                             "Recommended value is 90 days or less."
                         ),
-                    }
+                    )
                 )
 
         warn_age = policy.get("PASS_WARN_AGE")
@@ -707,14 +708,14 @@ class LinuxAuditScanner:
         if warn_age and warn_age.isdigit():
             if int(warn_age) < 7:
                 findings.append(
-                    {
-                        "title": "Weak Password Warning Policy",
-                        "severity": "low",
-                        "description": (
+                    Finding(
+                        title="Weak Password Warning Policy",
+                        severity=Severity.LOW,
+                        description=(
                             f"PASS_WARN_AGE is set to {warn_age}. "
                             "Recommended value is at least 7 days."
                         ),
-                    }
+                    )
                 )
 
         return findings
@@ -722,36 +723,36 @@ class LinuxAuditScanner:
     def detect_listening_tcp_port_findings(
         self,
         ports: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         ports = ports if ports is not None else self.get_listening_tcp_ports()
 
         if not ports:
             return []
 
         return [
-            {
-                "title": "Listening TCP Port Detected",
-                "severity": "info",
-                "description": f"Listening TCP port detected: {port}",
-            }
+            Finding(
+                title="Listening TCP Port Detected",
+                severity=Severity.INFO,
+                description=f"Listening TCP port detected: {port}",
+            )
             for port in ports
         ]
 
     def detect_listening_udp_port_findings(
         self,
         ports: list[str] | None = None,
-    ) -> list[dict]:
+    ) -> list[Finding]:
         ports = ports if ports is not None else self.get_listening_udp_ports()
 
         if not ports:
             return []
 
         return [
-            {
-                "title": "Listening UDP Port Detected",
-                "severity": "info",
-                "description": f"Listening UDP port detected: {port}",
-            }
+            Finding(
+                title="Listening UDP Port Detected",
+                severity=Severity.INFO,
+                description=f"Listening UDP port detected: {port}",
+            )
             for port in ports
         ]
 

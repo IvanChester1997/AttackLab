@@ -16,20 +16,7 @@ class ReportGenerator:
         findings = RiskEngine.analyze(scan_result)
 
         if linux_audit:
-            findings.extend(
-                Finding(
-                    title=finding["title"],
-                    severity=Severity(finding["severity"]),
-                    description=finding["description"],
-                    port=finding.get("port"),
-                    service=finding.get("service"),
-                    product=finding.get("product"),
-                    version=finding.get("version"),
-                    cve=finding.get("cve"),
-                    remediation=finding.get("remediation"),
-                )
-                for finding in linux_audit.findings
-            )
+            findings.extend(linux_audit.findings)
 
         risk_score = RiskEngine.calculate_score(findings)
         risk_level = RiskEngine.calculate_level(risk_score)
