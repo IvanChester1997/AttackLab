@@ -50,10 +50,11 @@ VERSION_ID="22.04"
 PRETTY_NAME="Ubuntu 22.04 LTS"
 """.strip(),
         "root:x:0:0:root:/root:/bin/bash",
-        "root:x:0:0:root:/root:/bin/bash",
-        "root:x:0:0:root:/root:/bin/bash",
-        "root:x:0:0:root:/root:/bin/bash",
-        "root:x:0:0:root:/root:/bin/bash",
+        "",
+        "",
+        "",
+        "",
+        "",
         "",
         "",
         "",
@@ -160,6 +161,55 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
     assert "user1" not in usernames
 
 
+def test_get_docker_group_members():
+    connector = Mock()
+
+    connector.execute.return_value = "docker:x:999:user1,user2"
+
+    scanner = LinuxAuditScanner(connector)
+
+    members = scanner.get_docker_group_members()
+
+    assert members == [
+        "user1",
+        "user2",
+    ]
+
+    connector.execute.assert_called_once_with("getent group docker")
+
+
+def test_get_docker_group_members_empty():
+    connector = Mock()
+
+    connector.execute.return_value = ""
+
+    scanner = LinuxAuditScanner(connector)
+
+    assert scanner.get_docker_group_members() == []
+
+
+def test_detect_docker_group_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_docker_group_findings(
+        [
+            "user1",
+            "user2",
+        ]
+    )
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "User In Docker Group"
+    assert findings[0]["severity"] == "high"
+    assert "user1" in findings[0]["description"]
+
+    assert findings[1]["title"] == "User In Docker Group"
+    assert "user2" in findings[1]["description"]
+
+
 def test_detect_additional_uid_zero_accounts():
     connector = Mock()
 
@@ -247,6 +297,8 @@ daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 user1:x:1000:1000:user1:/home/user1:/bin/bash
 """.strip()
 
+    "",
+
     connector.execute.side_effect = [
         "server01",
         """
@@ -259,6 +311,10 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         passwd_content,
         passwd_content,
         passwd_content,
+        "",
+        "",
+        "",
+        "",
         "",
         "",
         "",
@@ -431,27 +487,26 @@ def test_run_audit_includes_world_writable_findings():
     connector.execute.side_effect = [
         "attacklab",
         """
-    ID=debian
-    NAME="Debian GNU/Linux"
-    """.strip(),
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
         """
-    root:x:0:0:root:/root:/bin/bash
-    """.strip(),
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        "",  # docker
         """
-    PermitRootLogin no
-    PasswordAuthentication no
-    PubkeyAuthentication yes
-    MaxAuthTries 6
-    """.strip(),
-        """
-    /tmp/world-writable.txt
-    """.strip(),
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "/tmp/world-writable.txt",  # world_writable
+        "",  # suid
+        "",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writabl_authorized_keys
+        "",  # sudoers
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -519,21 +574,20 @@ NAME="Debian GNU/Linux"
         """
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
+        "",  # docker
         """
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 6
 """.strip(),
-        "",
-        """
-/usr/bin/passwd
-""".strip(),
-        "",
-        "",
-        "",
-        "",
-        "",
+        "",  # world_writable
+        "/usr/bin/passwd",  # suid_sgid
+        "",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "",  # sudoers
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -598,21 +652,20 @@ NAME="Debian GNU/Linux"
         """
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
+        "",  # docker
         """
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 6
 """.strip(),
-        "",
-        "",
-        """
-/etc/cron.d/e2scrub_all
-""".strip(),
-        "",
-        "",
-        "",
-        "",
+        "",  # world_writable
+        "",  # suid_sgid
+        "/etc/cron.d/e2scrub_all",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "",  # sudoers
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -671,19 +724,20 @@ NAME="Debian GNU/Linux"
         """
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
+        "",  # docker
         """
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 6
 """.strip(),
-        "",
-        "",
-        "",
-        "/etc/cron.d/backdoor",
-        "",
-        "",
-        "",
+        "",  # world_writable
+        "",  # suid_sgid
+        "",  # cron
+        "/etc/cron.d/backdoor",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "",  # sudoers
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -741,11 +795,15 @@ NAME="Debian GNU/Linux"
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
         """
+        
+        "",
+
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
 MaxAuthTries 6
 """.strip(),
+        "",
         "",
         "",
         "",

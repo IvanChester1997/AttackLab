@@ -78,6 +78,37 @@ class LinuxAuditScanner:
 
         return [user for user in users if user.uid < 1000 and user.username != "root"]
 
+    def get_docker_group_members(self) -> list[str]:
+        output = self.connector.execute("getent group docker")
+
+        if not output.strip():
+            return []
+
+        try:
+            members = output.strip().split(":")[3]
+        except IndexError:
+            return []
+
+        return [member.strip() for member in members.split(",") if member.strip()]
+
+    def detect_docker_group_findings(
+        self,
+        members: list[str] | None = None,
+    ) -> list[dict]:
+        members = members if members is not None else self.get_docker_group_members()
+
+        return [
+            {
+                "title": "User In Docker Group",
+                "severity": "high",
+                "description": (
+                    f"User '{member}' is a member of docker group "
+                    "and may obtain root privileges."
+                ),
+            }
+            for member in members
+        ]
+
     def detect_uid_zero_findings(
         self,
         users: list[LinuxUser] | None = None,
@@ -348,6 +379,10 @@ class LinuxAuditScanner:
         findings = []
 
         findings.extend(self.detect_uid_zero_findings(users))
+
+        docker_members = self.get_docker_group_members()
+        findings.extend(self.detect_docker_group_findings(docker_members))
+
         findings.extend(self.run_ssh_audit())
 
         world_writable_files = self.get_world_writable_files()
@@ -458,9 +493,7 @@ class LinuxAuditScanner:
         files: list[str] | None = None,
     ) -> list[dict]:
         files = (
-            files
-            if files is not None
-            else self.get_writable_authorized_keys_files()
+            files if files is not None else self.get_writable_authorized_keys_files()
         )
 
         if not files:
