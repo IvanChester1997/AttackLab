@@ -60,8 +60,14 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "",
         "",
         "",
-        "",  # firewall_ruleset
-        "",  # listening_tcp_ports
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -213,6 +219,88 @@ def test_detect_docker_group_findings():
     assert "user2" in findings[1]["description"]
 
 
+def test_get_sudo_group_members():
+    connector = Mock()
+
+    connector.execute.return_value = "sudo:x:27:user1,user2"
+
+    scanner = LinuxAuditScanner(connector)
+
+    members = scanner.get_sudo_group_members()
+
+    assert members == [
+        "user1",
+        "user2",
+    ]
+
+
+def test_detect_sudo_group_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_sudo_group_findings(
+        [
+            "user1",
+            "user2",
+        ]
+    )
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "User In Privileged Group"
+    assert findings[0]["severity"] == "medium"
+    assert "user1" in findings[0]["description"]
+
+    assert findings[1]["title"] == "User In Privileged Group"
+    assert "user2" in findings[1]["description"]
+
+
+def test_run_audit_includes_sudo_group_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        "",  # docker
+        "sudo:x:27:user1",  # sudo group
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "",  # world_writable
+        "",  # suid_sgid
+        "",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "",  # password_policy
+        "",  # sudoers
+        "",  # ssh_host_keys
+        "",  # firewall_ruleset
+        "",  # listening_tcp_ports
+        "",  # listening_udp_ports
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+
+    assert result.findings[0]["title"] == "User In Privileged Group"
+    assert result.findings[0]["severity"] == "medium"
+    assert "user1" in result.findings[0]["description"]
+
+
 def test_detect_additional_uid_zero_accounts():
     connector = Mock()
 
@@ -314,17 +402,21 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         passwd_content,
         passwd_content,
         passwd_content,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
+        "",  # docker
+        "",  # sudo_group
+        "",  # ssh_config
+        "",  # world_writable
+        "",  # suid_sgid
+        "",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "",  # password_policy
+        "",  # sudoers
+        "",  # ssh_host_keys
         "",  # firewall_ruleset
         "",  # listening_tcp_ports
+        "",  # listening_udp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -499,6 +591,7 @@ NAME="Debian GNU/Linux"
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
         "",  # docker
+        "",  # sudo_group
         """
 PermitRootLogin no
 PasswordAuthentication no
@@ -514,7 +607,9 @@ MaxAuthTries 6
         "",  # sudoers
         "",
         "",  # firewall_ruleset
-        "",  # listening_tcp_ports
+        "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -583,6 +678,7 @@ NAME="Debian GNU/Linux"
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
         "",  # docker
+        "",  # sudo_group
         """
 PermitRootLogin no
 PasswordAuthentication no
@@ -596,6 +692,8 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
+        "",
         "",
         "",  # firewall_ruleset
         "",  # listening_tcp_ports
@@ -664,6 +762,7 @@ NAME="Debian GNU/Linux"
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
         "",  # docker
+        "",  # sudo_group
         """
 PermitRootLogin no
 PasswordAuthentication no
@@ -677,6 +776,8 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
+        "",
         "",
         "",  # firewall_ruleset
         "",  # listening_tcp_ports
@@ -739,6 +840,7 @@ NAME="Debian GNU/Linux"
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
         "",  # docker
+        "",  # sudo_group
         """
 PermitRootLogin no
 PasswordAuthentication no
@@ -752,6 +854,8 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
+        "",
         "",
         "",  # firewall_ruleset
         "",  # listening_tcp_ports
@@ -812,6 +916,7 @@ def test_run_audit_includes_nopasswd_sudo_findings():
     root:x:0:0:root:/root:/bin/bash
     """.strip(),
         "",  # docker
+        "",  # sudo_group
         """
     PermitRootLogin no
     PasswordAuthentication no
@@ -824,10 +929,13 @@ def test_run_audit_includes_nopasswd_sudo_findings():
         "",  # writable_cron
         "",  # authorized_keys
         "",  # writable_authorized_keys
+        "",
         "root ALL=(ALL) NOPASSWD: ALL",  # sudoers
         "",  # ssh_host_keys
         "",  # firewall_ruleset
-        "",  # listening_tcp_ports
+        "",
+        "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -981,6 +1089,8 @@ NAME="Debian GNU/Linux"
         """
 root:x:0:0:root:/root:/bin/bash
 """.strip(),
+        "",  # docker
+        "",  # sudo_group
         """
 PermitRootLogin no
 PasswordAuthentication no
@@ -999,6 +1109,8 @@ MaxAuthTries 6
 /etc/ssh/ssh_host_rsa_key
 """.strip(),
         "",  # firewall_ruleset
+        "",
+        "",
         "",  # listening_tcp_ports
     ]
 
@@ -1030,6 +1142,7 @@ tcp LISTEN 0 128 0.0.0.0:80
         "tcp LISTEN 0 128 0.0.0.0:80",
     ]
 
+
 def test_detect_listening_tcp_port_findings():
     connector = Mock()
     scanner = LinuxAuditScanner(connector)
@@ -1046,16 +1159,14 @@ def test_detect_listening_tcp_port_findings():
             "title": "Listening TCP Port Detected",
             "severity": "info",
             "description": (
-                "Listening TCP port detected: "
-                "tcp LISTEN 0 128 0.0.0.0:22"
+                "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
             ),
         },
         {
             "title": "Listening TCP Port Detected",
             "severity": "info",
             "description": (
-                "Listening TCP port detected: "
-                "tcp LISTEN 0 128 0.0.0.0:80"
+                "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:80"
             ),
         },
     ]
@@ -1068,6 +1179,7 @@ def test_detect_listening_tcp_port_findings_empty():
     findings = scanner.detect_listening_tcp_port_findings([])
 
     assert findings == []
+
 
 def test_run_audit_includes_listening_tcp_port_findings():
     connector = Mock()
@@ -1098,8 +1210,101 @@ def test_run_audit_includes_listening_tcp_port_findings():
             "title": "Listening TCP Port Detected",
             "severity": "info",
             "description": (
-                "Listening TCP port detected: "
-                "tcp LISTEN 0 128 0.0.0.0:22"
+                "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
+            ),
+        }
+    ]
+
+
+def test_get_listening_udp_ports():
+    connector = Mock()
+
+    connector.execute.return_value = """
+udp UNCONN 0 0 0.0.0.0:68
+udp UNCONN 0 0 0.0.0.0:123
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    ports = scanner.get_listening_udp_ports()
+
+    assert ports == [
+        "udp UNCONN 0 0 0.0.0.0:68",
+        "udp UNCONN 0 0 0.0.0.0:123",
+    ]
+
+
+def test_detect_listening_udp_port_findings():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    ports = [
+        "udp UNCONN 0 0 0.0.0.0:68",
+        "udp UNCONN 0 0 0.0.0.0:123",
+    ]
+
+    findings = scanner.detect_listening_udp_port_findings(ports)
+
+    assert findings == [
+        {
+            "title": "Listening UDP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
+            ),
+        },
+        {
+            "title": "Listening UDP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:123"
+            ),
+        },
+    ]
+
+
+def test_detect_listening_udp_port_findings_empty():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_listening_udp_port_findings([])
+
+    assert findings == []
+
+
+def test_run_audit_includes_listening_udp_port_findings():
+    connector = Mock()
+
+    def execute(command):
+        if command == "hostname":
+            return "test-host"
+
+        if command == "cat /etc/os-release":
+            return 'NAME="Test Linux"'
+
+        if command == "ss -lnu | tail -n +2 | head -100":
+            return "udp UNCONN 0 0 0.0.0.0:68"
+
+        return ""
+
+    connector.execute.side_effect = execute
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    udp_findings = [
+        finding
+        for finding in result.findings
+        if finding["title"] == "Listening UDP Port Detected"
+    ]
+
+    assert udp_findings == [
+        {
+            "title": "Listening UDP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
             ),
         }
     ]

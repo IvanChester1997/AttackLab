@@ -109,6 +109,37 @@ class LinuxAuditScanner:
             for member in members
         ]
 
+    def get_sudo_group_members(self) -> list[str]:
+        output = self.connector.execute("getent group sudo || getent group wheel")
+
+        if not output.strip():
+            return []
+
+        try:
+            members = output.strip().split(":")[3]
+        except IndexError:
+            return []
+
+        return [member.strip() for member in members.split(",") if member.strip()]
+
+    def detect_sudo_group_findings(
+        self,
+        members: list[str] | None = None,
+    ) -> list[dict]:
+        members = members if members is not None else self.get_sudo_group_members()
+
+        return [
+            {
+                "title": "User In Privileged Group",
+                "severity": "medium",
+                "description": (
+                    f"User '{member}' is a member of sudo/wheel group "
+                    "and has elevated privileges."
+                ),
+            }
+            for member in members
+        ]
+
     def detect_uid_zero_findings(
         self,
         users: list[LinuxUser] | None = None,
@@ -381,11 +412,17 @@ class LinuxAuditScanner:
         findings.extend(self.detect_uid_zero_findings(users))
 
         docker_members = self.get_docker_group_members()
+
         findings.extend(self.detect_docker_group_findings(docker_members))
+
+        sudo_members = self.get_sudo_group_members()
+
+        findings.extend(self.detect_sudo_group_findings(sudo_members))
 
         findings.extend(self.run_ssh_audit())
 
         world_writable_files = self.get_world_writable_files()
+
         findings.extend(self.detect_world_writable_findings(world_writable_files))
 
         suid_sgid_files = self.get_suid_sgid_files()
@@ -412,6 +449,10 @@ class LinuxAuditScanner:
             )
         )
 
+        password_policy = self.get_password_policy()
+
+        findings.extend(self.detect_password_policy_findings(password_policy))
+
         sudoers_entries = self.get_sudoers_entries()
 
         findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
@@ -426,9 +467,11 @@ class LinuxAuditScanner:
 
         listening_tcp_ports = self.get_listening_tcp_ports()
 
-        findings.extend(
-            self.detect_listening_tcp_port_findings(listening_tcp_ports)
-        )
+        findings.extend(self.detect_listening_tcp_port_findings(listening_tcp_ports))
+
+        listening_udp_ports = self.get_listening_udp_ports()
+
+        findings.extend(self.detect_listening_udp_port_findings(listening_udp_ports))
 
         return LinuxAuditResult(
             hostname=hostname,
@@ -619,6 +662,63 @@ class LinuxAuditScanner:
 
         return [line.strip() for line in output.splitlines() if line.strip()]
 
+    def get_password_policy(self) -> dict[str, str]:
+        output = self.connector.execute(
+            "grep -E '^(PASS_MAX_DAYS|PASS_MIN_DAYS|PASS_WARN_AGE)' " "/etc/login.defs"
+        )
+
+        result = {}
+
+        for line in output.splitlines():
+            parts = line.split()
+
+            if len(parts) < 2:
+                continue
+
+            result[parts[0]] = parts[1]
+
+        return result
+
+    def detect_password_policy_findings(
+        self,
+        policy: dict[str, str] | None = None,
+    ) -> list[dict]:
+        policy = policy if policy is not None else self.get_password_policy()
+
+        findings = []
+
+        max_days = policy.get("PASS_MAX_DAYS")
+
+        if max_days and max_days.isdigit():
+            if int(max_days) > 90:
+                findings.append(
+                    {
+                        "title": "Weak Password Expiration Policy",
+                        "severity": "medium",
+                        "description": (
+                            f"PASS_MAX_DAYS is set to {max_days}. "
+                            "Recommended value is 90 days or less."
+                        ),
+                    }
+                )
+
+        warn_age = policy.get("PASS_WARN_AGE")
+
+        if warn_age and warn_age.isdigit():
+            if int(warn_age) < 7:
+                findings.append(
+                    {
+                        "title": "Weak Password Warning Policy",
+                        "severity": "low",
+                        "description": (
+                            f"PASS_WARN_AGE is set to {warn_age}. "
+                            "Recommended value is at least 7 days."
+                        ),
+                    }
+                )
+
+        return findings
+
     def detect_listening_tcp_port_findings(
         self,
         ports: list[str] | None = None,
@@ -636,3 +736,28 @@ class LinuxAuditScanner:
             }
             for port in ports
         ]
+
+    def detect_listening_udp_port_findings(
+        self,
+        ports: list[str] | None = None,
+    ) -> list[dict]:
+        ports = ports if ports is not None else self.get_listening_udp_ports()
+
+        if not ports:
+            return []
+
+        return [
+            {
+                "title": "Listening UDP Port Detected",
+                "severity": "info",
+                "description": f"Listening UDP port detected: {port}",
+            }
+            for port in ports
+        ]
+
+    def get_listening_udp_ports(self) -> list[str]:
+        command = "ss -lnu | tail -n +2 | head -100"
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
