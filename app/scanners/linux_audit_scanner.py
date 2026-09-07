@@ -164,6 +164,22 @@ class LinuxAuditScanner:
             for user in extra_users
         ]
 
+    def _collect_privilege_findings(
+        self,
+        users: list[LinuxUser],
+    ) -> list[Finding]:
+        findings = []
+
+        findings.extend(self.detect_uid_zero_findings(users))
+
+        docker_members = self.get_docker_group_members()
+        findings.extend(self.detect_docker_group_findings(docker_members))
+
+        sudo_members = self.get_sudo_group_members()
+        findings.extend(self.detect_sudo_group_findings(sudo_members))
+
+        return findings
+
     def get_world_writable_files(self) -> list[str]:
         command = (
             "find / "
@@ -211,6 +227,21 @@ class LinuxAuditScanner:
             )
             for file_path in files
         ]
+
+    def _collect_filesystem_findings(self) -> list[Finding]:
+        findings = []
+
+        world_writable_files = self.get_world_writable_files()
+        findings.extend(
+            self.detect_world_writable_findings(world_writable_files)
+        )
+
+        suid_sgid_files = self.get_suid_sgid_files()
+        findings.extend(
+            self.detect_suid_sgid_findings(suid_sgid_files)
+        )
+
+        return findings
 
     def get_cron_entries(self) -> list[str]:
         command = (
@@ -410,69 +441,23 @@ class LinuxAuditScanner:
 
         findings = []
 
-        findings.extend(self.detect_uid_zero_findings(users))
-
-        docker_members = self.get_docker_group_members()
-
-        findings.extend(self.detect_docker_group_findings(docker_members))
-
-        sudo_members = self.get_sudo_group_members()
-
-        findings.extend(self.detect_sudo_group_findings(sudo_members))
+        findings.extend(self._collect_privilege_findings(users))
 
         findings.extend(self.run_ssh_audit())
 
-        world_writable_files = self.get_world_writable_files()
+        findings.extend(self._collect_filesystem_findings())
 
-        findings.extend(self.detect_world_writable_findings(world_writable_files))
+        findings.extend(self._collect_cron_findings())
 
-        suid_sgid_files = self.get_suid_sgid_files()
+        findings.extend(self._collect_authorized_keys_findings())
 
-        findings.extend(self.detect_suid_sgid_findings(suid_sgid_files))
+        findings.extend(self._collect_password_policy_findings())
 
-        cron_entries = self.get_cron_entries()
+        findings.extend(self._collect_sudoers_findings())
 
-        findings.extend(self.detect_cron_findings(cron_entries))
+        findings.extend(self._collect_ssh_host_key_findings())
 
-        writable_cron_files = self.get_writable_cron_files()
-
-        findings.extend(self.detect_writable_cron_findings(writable_cron_files))
-
-        authorized_keys_files = self.get_authorized_keys_files()
-
-        findings.extend(self.detect_authorized_keys_findings(authorized_keys_files))
-
-        writable_authorized_keys_files = self.get_writable_authorized_keys_files()
-
-        findings.extend(
-            self.detect_writable_authorized_keys_findings(
-                writable_authorized_keys_files
-            )
-        )
-
-        password_policy = self.get_password_policy()
-
-        findings.extend(self.detect_password_policy_findings(password_policy))
-
-        sudoers_entries = self.get_sudoers_entries()
-
-        findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
-
-        ssh_host_keys = self.get_ssh_host_keys()
-
-        findings.extend(self.detect_ssh_host_key_findings(ssh_host_keys))
-
-        firewall_ruleset = self.get_firewall_ruleset()
-
-        findings.extend(self.detect_firewall_findings(firewall_ruleset))
-
-        listening_tcp_ports = self.get_listening_tcp_ports()
-
-        findings.extend(self.detect_listening_tcp_port_findings(listening_tcp_ports))
-
-        listening_udp_ports = self.get_listening_udp_ports()
-
-        findings.extend(self.detect_listening_udp_port_findings(listening_udp_ports))
+        findings.extend(self._collect_network_findings())
 
         return LinuxAuditResult(
             hostname=hostname,
@@ -483,6 +468,23 @@ class LinuxAuditScanner:
             service_accounts=service_accounts,
             findings=findings,
         )
+
+    def _collect_cron_findings(self) -> list[Finding]:
+        findings = []
+
+        cron_entries = self.get_cron_entries()
+        findings.extend(self.detect_cron_findings(cron_entries))
+
+        writable_cron_files = self.get_writable_cron_files()
+        findings.extend(
+            self.detect_writable_cron_findings(writable_cron_files)
+        )
+
+        return findings
+
+    def _collect_password_policy_findings(self) -> list[Finding]:
+        password_policy = self.get_password_policy()
+        return self.detect_password_policy_findings(password_policy)
 
     def get_sudoers_entries(self) -> list[str]:
         command = (
@@ -518,6 +520,10 @@ class LinuxAuditScanner:
             )
 
         return findings
+
+    def _collect_sudoers_findings(self) -> list[Finding]:
+        sudoers_entries = self.get_sudoers_entries()
+        return self.detect_nopasswd_sudo_findings(sudoers_entries)
 
     def get_authorized_keys_files(self) -> list[str]:
         command = (
@@ -587,6 +593,23 @@ class LinuxAuditScanner:
             for file_path in files
         ]
 
+    def _collect_authorized_keys_findings(self) -> list[Finding]:
+        findings = []
+
+        authorized_keys_files = self.get_authorized_keys_files()
+        findings.extend(
+            self.detect_authorized_keys_findings(authorized_keys_files)
+        )
+
+        writable_authorized_keys_files = self.get_writable_authorized_keys_files()
+        findings.extend(
+            self.detect_writable_authorized_keys_findings(
+                writable_authorized_keys_files
+            )
+        )
+
+        return findings
+
     def get_ssh_host_keys(self) -> list[str]:
         command = (
             "find /etc/ssh "
@@ -616,6 +639,10 @@ class LinuxAuditScanner:
             )
             for file_path in files
         ]
+
+    def _collect_ssh_host_key_findings(self) -> list[Finding]:
+        ssh_host_keys = self.get_ssh_host_keys()
+        return self.detect_ssh_host_key_findings(ssh_host_keys)
 
     def get_firewall_ruleset(self) -> list[str]:
         output = self.connector.execute("nft list ruleset")
@@ -655,6 +682,24 @@ class LinuxAuditScanner:
                 in_input_chain = False
 
         return []
+
+    def _collect_network_findings(self) -> list[Finding]:
+        findings = []
+
+        firewall_ruleset = self.get_firewall_ruleset()
+        findings.extend(self.detect_firewall_findings(firewall_ruleset))
+
+        listening_tcp_ports = self.get_listening_tcp_ports()
+        findings.extend(
+            self.detect_listening_tcp_port_findings(listening_tcp_ports)
+        )
+
+        listening_udp_ports = self.get_listening_udp_ports()
+        findings.extend(
+            self.detect_listening_udp_port_findings(listening_udp_ports)
+        )
+
+        return findings
 
     def get_listening_tcp_ports(self) -> list[str]:
         command = "ss -lnt " "| tail -n +2 " "| head -100"
