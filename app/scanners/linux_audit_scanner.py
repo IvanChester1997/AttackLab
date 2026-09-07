@@ -420,6 +420,12 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_ssh_host_key_findings(ssh_host_keys))
 
+        listening_tcp_ports = self.get_listening_tcp_ports()
+
+        findings.extend(
+            self.detect_listening_tcp_port_findings(listening_tcp_ports)
+        )
+
         return LinuxAuditResult(
             hostname=hostname,
             os=os_info,
@@ -561,4 +567,29 @@ class LinuxAuditScanner:
                 "description": (f"SSH host private key detected: {file_path}"),
             }
             for file_path in files
+        ]
+
+    def get_listening_tcp_ports(self) -> list[str]:
+        command = "ss -lnt " "| tail -n +2 " "| head -100"
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_listening_tcp_port_findings(
+        self,
+        ports: list[str] | None = None,
+    ) -> list[dict]:
+        ports = ports if ports is not None else self.get_listening_tcp_ports()
+
+        if not ports:
+            return []
+
+        return [
+            {
+                "title": "Listening TCP Port Detected",
+                "severity": "info",
+                "description": f"Listening TCP port detected: {port}",
+            }
+            for port in ports
         ]

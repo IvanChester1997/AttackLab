@@ -60,6 +60,7 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "",
         "",
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -321,6 +322,7 @@ user1:x:1000:1000:user1:/home/user1:/bin/bash
         "",
         "",
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -509,6 +511,7 @@ MaxAuthTries 6
         "",  # writabl_authorized_keys
         "",  # sudoers
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -591,6 +594,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -670,6 +674,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -743,6 +748,7 @@ MaxAuthTries 6
         "",  # writable_authorized_keys
         "",  # sudoers
         "",
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -814,6 +820,7 @@ def test_run_audit_includes_nopasswd_sudo_findings():
         "",  # writable_authorized_keys
         "root ALL=(ALL) NOPASSWD: ALL",  # sudoers
         "",  # ssh_host_keys
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -984,6 +991,7 @@ MaxAuthTries 6
         """
 /etc/ssh/ssh_host_rsa_key
 """.strip(),
+        "",  # listening_tcp_ports
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -995,3 +1003,95 @@ MaxAuthTries 6
     assert result.findings[0]["title"] == "SSH Host Key Detected"
     assert result.findings[0]["severity"] == "info"
     assert "/etc/ssh/ssh_host_rsa_key" in result.findings[0]["description"]
+
+
+def test_get_listening_tcp_ports():
+    connector = Mock()
+
+    connector.execute.return_value = """
+tcp LISTEN 0 128 0.0.0.0:22
+tcp LISTEN 0 128 0.0.0.0:80
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    ports = scanner.get_listening_tcp_ports()
+
+    assert ports == [
+        "tcp LISTEN 0 128 0.0.0.0:22",
+        "tcp LISTEN 0 128 0.0.0.0:80",
+    ]
+
+def test_detect_listening_tcp_port_findings():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    ports = [
+        "tcp LISTEN 0 128 0.0.0.0:22",
+        "tcp LISTEN 0 128 0.0.0.0:80",
+    ]
+
+    findings = scanner.detect_listening_tcp_port_findings(ports)
+
+    assert findings == [
+        {
+            "title": "Listening TCP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening TCP port detected: "
+                "tcp LISTEN 0 128 0.0.0.0:22"
+            ),
+        },
+        {
+            "title": "Listening TCP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening TCP port detected: "
+                "tcp LISTEN 0 128 0.0.0.0:80"
+            ),
+        },
+    ]
+
+
+def test_detect_listening_tcp_port_findings_empty():
+    connector = Mock()
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_listening_tcp_port_findings([])
+
+    assert findings == []
+
+def test_run_audit_includes_listening_tcp_port_findings():
+    connector = Mock()
+
+    def execute(command):
+        if command == "hostname":
+            return "test-host"
+        if command == "cat /etc/os-release":
+            return 'NAME="Test Linux"'
+        if command == "ss -lnt " "| tail -n +2 " "| head -100":
+            return "tcp LISTEN 0 128 0.0.0.0:22"
+        return ""
+
+    connector.execute.side_effect = execute
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    listening_findings = [
+        finding
+        for finding in result.findings
+        if finding["title"] == "Listening TCP Port Detected"
+    ]
+
+    assert listening_findings == [
+        {
+            "title": "Listening TCP Port Detected",
+            "severity": "info",
+            "description": (
+                "Listening TCP port detected: "
+                "tcp LISTEN 0 128 0.0.0.0:22"
+            ),
+        }
+    ]
