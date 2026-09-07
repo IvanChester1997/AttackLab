@@ -59,6 +59,7 @@ PRETTY_NAME="Ubuntu 22.04 LTS"
         "",
         "",
         "",
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -507,6 +508,7 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writabl_authorized_keys
         "",  # sudoers
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -588,6 +590,7 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -666,6 +669,7 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -738,6 +742,7 @@ MaxAuthTries 6
         "",  # authorized_keys
         "",  # writable_authorized_keys
         "",  # sudoers
+        "",
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -788,29 +793,27 @@ def test_run_audit_includes_nopasswd_sudo_findings():
     connector.execute.side_effect = [
         "attacklab",
         """
-ID=debian
-NAME="Debian GNU/Linux"
-""".strip(),
+    ID=debian
+    NAME="Debian GNU/Linux"
+    """.strip(),
         """
-root:x:0:0:root:/root:/bin/bash
-""".strip(),
+    root:x:0:0:root:/root:/bin/bash
+    """.strip(),
+        "",  # docker
         """
-        
-        "",
-
-PermitRootLogin no
-PasswordAuthentication no
-PubkeyAuthentication yes
-MaxAuthTries 6
-""".strip(),
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "root ALL=(ALL) NOPASSWD: ALL",
+    PermitRootLogin no
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    MaxAuthTries 6
+    """.strip(),
+        "",  # world_writable
+        "",  # suid_sgid
+        "",  # cron
+        "",  # writable_cron
+        "",  # authorized_keys
+        "",  # writable_authorized_keys
+        "root ALL=(ALL) NOPASSWD: ALL",  # sudoers
+        "",  # ssh_host_keys
     ]
 
     scanner = LinuxAuditScanner(connector)
@@ -912,3 +915,83 @@ def test_detect_writable_authorized_keys_findings():
         "Group/world-writable authorized_keys file detected: "
         "/home/test/.ssh/authorized_keys"
     )
+
+
+def test_get_ssh_host_keys():
+    connector = Mock()
+
+    connector.execute.return_value = """
+/etc/ssh/ssh_host_rsa_key
+/etc/ssh/ssh_host_ed25519_key
+""".strip()
+
+    scanner = LinuxAuditScanner(connector)
+
+    files = scanner.get_ssh_host_keys()
+
+    assert files == [
+        "/etc/ssh/ssh_host_rsa_key",
+        "/etc/ssh/ssh_host_ed25519_key",
+    ]
+
+
+def test_detect_ssh_host_key_findings():
+    connector = Mock()
+
+    scanner = LinuxAuditScanner(connector)
+
+    findings = scanner.detect_ssh_host_key_findings(
+        [
+            "/etc/ssh/ssh_host_rsa_key",
+            "/etc/ssh/ssh_host_ed25519_key",
+        ]
+    )
+
+    assert len(findings) == 2
+
+    assert findings[0]["title"] == "SSH Host Key Detected"
+    assert findings[0]["severity"] == "info"
+
+    assert findings[1]["title"] == "SSH Host Key Detected"
+
+
+def test_run_audit_includes_ssh_host_key_findings():
+    connector = Mock()
+
+    connector.execute.side_effect = [
+        "attacklab",
+        """
+ID=debian
+NAME="Debian GNU/Linux"
+""".strip(),
+        """
+root:x:0:0:root:/root:/bin/bash
+""".strip(),
+        """
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 6
+""".strip(),
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        """
+/etc/ssh/ssh_host_rsa_key
+""".strip(),
+    ]
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    assert len(result.findings) == 1
+
+    assert result.findings[0]["title"] == "SSH Host Key Detected"
+    assert result.findings[0]["severity"] == "info"
+    assert "/etc/ssh/ssh_host_rsa_key" in result.findings[0]["description"]

@@ -416,6 +416,10 @@ class LinuxAuditScanner:
 
         findings.extend(self.detect_nopasswd_sudo_findings(sudoers_entries))
 
+        ssh_host_keys = self.get_ssh_host_keys()
+
+        findings.extend(self.detect_ssh_host_key_findings(ssh_host_keys))
+
         return LinuxAuditResult(
             hostname=hostname,
             os=os_info,
@@ -525,6 +529,36 @@ class LinuxAuditScanner:
                 "title": "Authorized Keys File Detected",
                 "severity": "info",
                 "description": (f"SSH authorized_keys file detected: {file_path}"),
+            }
+            for file_path in files
+        ]
+
+    def get_ssh_host_keys(self) -> list[str]:
+        command = (
+            "find /etc/ssh "
+            "-type f "
+            "-name 'ssh_host_*_key' "
+            "2>/dev/null | sort | head -100"
+        )
+
+        output = self.connector.execute(command)
+
+        return [line.strip() for line in output.splitlines() if line.strip()]
+
+    def detect_ssh_host_key_findings(
+        self,
+        files: list[str] | None = None,
+    ) -> list[dict]:
+        files = files if files is not None else self.get_ssh_host_keys()
+
+        if not files:
+            return []
+
+        return [
+            {
+                "title": "SSH Host Key Detected",
+                "severity": "info",
+                "description": (f"SSH host private key detected: {file_path}"),
             }
             for file_path in files
         ]
