@@ -1,7 +1,7 @@
 import aiosqlite
 
 from app.core.config import DB_PATH
-from app.database.scan_repository import CREATE_SCAN_HISTORY_TABLE
+from app.database.scan_repository import CREATE_SCAN_HISTORY_TABLE, ScanRepository
 
 CREATE_SCANS_TABLE = """
 CREATE TABLE IF NOT EXISTS scans (
@@ -20,3 +20,5 @@ async def init_db() -> None:
         await db.execute(CREATE_SCANS_TABLE)
         await db.execute(CREATE_SCAN_HISTORY_TABLE)
         await db.commit()
+
+    await ScanRepository(DB_PATH).init()

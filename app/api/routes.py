@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
+import asyncio
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.core.config import DB_PATH
@@ -20,29 +22,63 @@ class AssessmentRequest(BaseModel):
 
 class AssessmentResponse(BaseModel):
     id: int
-    report: SecurityReport
+    status: str
+    report: SecurityReport | None = None
+    error_message: str | None = None
 
 
 def get_repository() -> ScanRepository:
     return ScanRepository(DB_PATH)
 
 
-@router.post("/assessments", response_model=AssessmentResponse)
-async def create_assessment(request: AssessmentRequest) -> AssessmentResponse:
-    report = AssessmentService.run(
-        target=request.target,
-        ports=request.ports,
-        username=request.username,
-        ssh_port=request.ssh_port,
-        key_file=request.key_file,
-    )
-
+async def run_assessment(
+    scan_id: int,
+    request: AssessmentRequest,
+) -> None:
     repository = get_repository()
-    scan_id = await repository.save_report(report)
+
+    await repository.update_status(scan_id, "running")
+
+    try:
+        report = await asyncio.to_thread(
+            AssessmentService.run,
+            target=request.target,
+            ports=request.ports,
+            username=request.username,
+            ssh_port=request.ssh_port,
+            key_file=request.key_file,
+        )
+
+        await repository.complete_scan(scan_id, report)
+    except Exception as exc:
+        await repository.update_status(
+            scan_id,
+            "failed",
+            str(exc),
+        )
+
+
+@router.post(
+    "/assessments",
+    response_model=AssessmentResponse,
+    status_code=202,
+)
+async def create_assessment(
+    request: AssessmentRequest,
+    background_tasks: BackgroundTasks,
+) -> AssessmentResponse:
+    repository = get_repository()
+    scan_id = await repository.create_scan(request.target)
+
+    background_tasks.add_task(
+        run_assessment,
+        scan_id,
+        request,
+    )
 
     return AssessmentResponse(
         id=scan_id,
-        report=report,
+        status="pending",
     )
 
 
@@ -61,12 +97,16 @@ async def list_scans(
             "risk_score": item.risk_score,
             "risk_level": item.risk_level,
             "total_findings": item.total_findings,
+            "error_message": item.error_message,
         }
         for item in history
     ]
 
 
-@router.get("/scans/{scan_id}", response_model=AssessmentResponse)
+@router.get(
+    "/scans/{scan_id}",
+    response_model=AssessmentResponse,
+)
 async def get_scan(scan_id: int) -> AssessmentResponse:
     repository = get_repository()
     item = await repository.get_report(scan_id)
@@ -79,5 +119,7 @@ async def get_scan(scan_id: int) -> AssessmentResponse:
 
     return AssessmentResponse(
         id=item.id,
-        report=item.report,
+        status=item.status,
+        report=item.report if item.status == "completed" else None,
+        error_message=item.error_message,
     )
