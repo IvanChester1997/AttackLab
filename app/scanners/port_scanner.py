@@ -9,6 +9,10 @@ from app.models.service import ServiceInfo
 DEFAULT_PORTS = "22,80,443"
 
 
+class PortScanError(Exception):
+    """Raised when Nmap cannot complete a port scan."""
+
+
 class PortScanner:
     @staticmethod
     def _parse_xml(output: str) -> list[PortResult]:
@@ -144,11 +148,15 @@ class PortScanner:
                 timeout=60,
                 check=False,
             )
-        except subprocess.TimeoutExpired:
-            return ScanResult(
-                target=target,
-                ports=[],
-            )
+        except subprocess.TimeoutExpired as exc:
+            raise PortScanError("Nmap scan timed out") from exc
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            message = f"Nmap scan failed with exit code {result.returncode}"
+            if stderr:
+                message = f"{message}: {stderr}"
+            raise PortScanError(message)
 
         output = result.stdout.strip()
 

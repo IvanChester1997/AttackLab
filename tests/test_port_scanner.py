@@ -1,6 +1,8 @@
 from unittest.mock import patch
 
-from app.scanners.port_scanner import PortScanner
+import pytest
+
+from app.scanners.port_scanner import PortScanError, PortScanner
 
 
 def test_scan_parses_open_ports():
@@ -72,7 +74,7 @@ PORT    STATE SERVICE
     assert "127.0.0.1" in command
 
 
-def test_scan_handles_timeout():
+def test_scan_raises_on_timeout():
     import subprocess
 
     with patch(
@@ -82,10 +84,21 @@ def test_scan_handles_timeout():
             timeout=60,
         ),
     ):
-        result = PortScanner.scan("127.0.0.1")
+        with pytest.raises(PortScanError, match="timed out"):
+            PortScanner.scan("127.0.0.1")
 
-    assert result.target == "127.0.0.1"
-    assert result.ports == []
+
+def test_scan_raises_on_nmap_failure():
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
+        mock_run.return_value.stdout = ""
+        mock_run.return_value.stderr = "Failed to resolve target"
+        mock_run.return_value.returncode = 2
+
+        with pytest.raises(
+            PortScanError,
+            match="Nmap scan failed with exit code 2: Failed to resolve target",
+        ):
+            PortScanner.scan("invalid-target")
 
 
 def test_scan_parses_service_details():
