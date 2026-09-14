@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import paramiko
-
 from app.connectors.ssh import SSHConnector
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult

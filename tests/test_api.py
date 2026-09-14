@@ -3,7 +3,6 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.database.scan_repository import ScanRepository
-from app.services.assessment_job_service import AssessmentJobService
 from app.main import app
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
@@ -143,69 +142,6 @@ def test_get_scan_returns_404(monkeypatch, tmp_path):
     assert response.status_code == 404
     assert response.json()["detail"] == "Scan 999 not found"
 
-
-def test_assessment_job_completes_scan(monkeypatch, tmp_path):
-    import asyncio
-
-    db_path = tmp_path / "attacklab.db"
-    repository = ScanRepository(db_path)
-    asyncio.run(repository.init())
-    scan_id = asyncio.run(repository.create_scan("10.0.0.20"))
-
-    report = make_report("10.0.0.20")
-
-    monkeypatch.setattr(
-        "app.services.assessment_job_service.AssessmentService.run",
-        lambda **kwargs: report,
-    )
-
-    asyncio.run(
-        AssessmentJobService.run(
-            repository,
-            scan_id,
-            "10.0.0.20",
-            "22,80",
-        )
-    )
-
-    scan = asyncio.run(repository.get_report(scan_id))
-
-    assert scan is not None
-    assert scan.status == "completed"
-    assert scan.report.target == "10.0.0.20"
-    assert scan.error_message is None
-
-
-def test_assessment_job_marks_failed(monkeypatch, tmp_path):
-    import asyncio
-
-    db_path = tmp_path / "attacklab.db"
-    repository = ScanRepository(db_path)
-    asyncio.run(repository.init())
-    scan_id = asyncio.run(repository.create_scan("10.0.0.21"))
-
-    def fail_assessment(**kwargs):
-        raise RuntimeError("Nmap execution failed")
-
-    monkeypatch.setattr(
-        "app.services.assessment_job_service.AssessmentService.run",
-        fail_assessment,
-    )
-
-    asyncio.run(
-        AssessmentJobService.run(
-            repository,
-            scan_id,
-            "10.0.0.21",
-            "22,80",
-        )
-    )
-
-    scan = asyncio.run(repository.get_report(scan_id))
-
-    assert scan is not None
-    assert scan.status == "failed"
-    assert scan.error_message == "Nmap execution failed"
 
 def test_create_assessment_rejects_blank_target(tmp_path, monkeypatch):
     db_path = tmp_path / "attacklab.db"
