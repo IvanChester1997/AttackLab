@@ -4,8 +4,7 @@ import paramiko
 import typer
 
 from app.connectors.ssh import SSHConnector
-from app.scanners.linux_audit_scanner import LinuxAuditScanner
-from app.services.port_scan_service import PortScanService
+from app.services.assessment_service import AssessmentService
 from app.services.report_generator import ReportGenerator
 
 
@@ -38,29 +37,21 @@ def _run_audit(
     ssh_port: int = 22,
     key_file: str | None = None,
 ) -> None:
-    result = PortScanService.scan(target, ports)
+    try:
+        report = AssessmentService.run(
+            target=target,
+            ports=ports,
+            username=username,
+            ssh_port=ssh_port,
+            key_file=key_file,
+        )
+    except (paramiko.SSHException, OSError) as exc:
+        typer.echo(f"SSH audit failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    result = report.scan
 
     typer.echo(f"Target: {result.target}")
-
-    linux_audit = None
-
-    if username is not None:
-        try:
-            connector = SSHConnector(
-                host=target,
-                username=username,
-                port=ssh_port,
-                key_file=key_file,
-            )
-            linux_audit = LinuxAuditScanner(connector).run_audit()
-        except (paramiko.SSHException, OSError) as exc:
-            typer.echo(f"SSH audit failed: {exc}", err=True)
-            raise typer.Exit(code=1)
-
-    report = ReportGenerator.generate(
-        result,
-        linux_audit=linux_audit,
-    )
 
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -98,10 +89,9 @@ def _run_audit(
         )
 
     typer.echo("")
+    typer.echo("Findings:")
 
     findings = report.findings
-
-    typer.echo("Findings:")
 
     if findings:
         for finding in findings:

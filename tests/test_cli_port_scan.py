@@ -9,6 +9,7 @@ from app.models.finding import Finding, Severity
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import PortResult, ScanResult
 from app.models.report import ReportSummary, SecurityReport
+from app.services.assessment_service import AssessmentService
 
 
 runner = CliRunner()
@@ -38,18 +39,26 @@ def test_scan_command():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ) as mock_scan:
+        "app.cli.main.AssessmentService.run",
+        return_value=SecurityReport(
+            target=result_data.target,
+            scan=result_data,
+            findings=[],
+            summary=ReportSummary(total_ports=len(result_data.ports), total_findings=0),
+        ),
+    ) as mock_run:
         result = runner.invoke(
             app,
             ["scan", "127.0.0.1"],
         )
 
     assert result.exit_code == 0
-    mock_scan.assert_called_once_with(
-        "127.0.0.1",
-        "22,80,443",
+    mock_run.assert_called_once_with(
+        target="127.0.0.1",
+        ports="22,80,443",
+        username=None,
+        ssh_port=22,
+        key_file=None,
     )
 
     assert "127.0.0.1" in result.stdout
@@ -75,9 +84,14 @@ def test_scan_command_with_custom_ports():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ) as mock_scan:
+        "app.cli.main.AssessmentService.run",
+        return_value=SecurityReport(
+            target=result_data.target,
+            scan=result_data,
+            findings=[],
+            summary=ReportSummary(total_ports=len(result_data.ports), total_findings=0),
+        ),
+    ) as mock_run:
         result = runner.invoke(
             app,
             [
@@ -89,9 +103,12 @@ def test_scan_command_with_custom_ports():
         )
 
     assert result.exit_code == 0
-    mock_scan.assert_called_once_with(
-        "127.0.0.1",
-        "1-1000",
+    mock_run.assert_called_once_with(
+        target="127.0.0.1",
+        ports="1-1000",
+        username=None,
+        ssh_port=22,
+        key_file=None,
     )
 
     assert "8080" in result.stdout
@@ -116,8 +133,16 @@ def test_scan_command_displays_service_details():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
+        "app.cli.main.AssessmentService.run",
+        return_value=SecurityReport(
+            target=result_data.target,
+            scan=result_data,
+            findings=[],
+            summary=ReportSummary(
+                total_ports=len(result_data.ports),
+                total_findings=0,
+            ),
+        ),
     ):
         result = runner.invoke(
             app,
@@ -163,10 +188,7 @@ def test_scan_command_displays_findings():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.ReportGenerator.generate",
+        "app.cli.main.AssessmentService.run",
         return_value=report,
     ):
         result = runner.invoke(app, ["scan", "127.0.0.1"])
@@ -215,10 +237,7 @@ def test_scan_command_writes_json_report(tmp_path):
     output_file = tmp_path / "report.json"
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.ReportGenerator.generate",
+        "app.cli.main.AssessmentService.run",
         return_value=report,
     ):
         result = runner.invoke(
@@ -261,10 +280,7 @@ def test_scan_command_writes_empty_json_report(tmp_path):
     output_file = tmp_path / "empty-report.json"
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.ReportGenerator.generate",
+        "app.cli.main.AssessmentService.run",
         return_value=report,
     ):
         result = runner.invoke(
@@ -330,17 +346,9 @@ def test_audit_command_runs_linux_audit():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.SSHConnector",
-    ) as mock_connector, patch(
-        "app.cli.main.LinuxAuditScanner.run_audit",
-        return_value=linux_audit,
-    ) as mock_linux_audit, patch(
-        "app.cli.main.ReportGenerator.generate",
+        "app.cli.main.AssessmentService.run",
         return_value=report,
-    ) as mock_generate:
+    ) as mock_run:
         result = runner.invoke(
             app,
             [
@@ -357,19 +365,14 @@ def test_audit_command_runs_linux_audit():
 
     assert result.exit_code == 0
 
-    mock_connector.assert_called_once_with(
-        host="127.0.0.1",
+    mock_run.assert_called_once_with(
+        target="127.0.0.1",
+        ports="22,80,443",
         username="root",
-        port=2222,
+        ssh_port=2222,
         key_file=Path("~/.ssh/id_ed25519"),
     )
-    mock_linux_audit.assert_called_once_with()
-
-    generated_scan = mock_generate.call_args.args[0]
-    generated_audit = mock_generate.call_args.kwargs["linux_audit"]
-
-    assert generated_scan is result_data
-    assert generated_audit is linux_audit
+    assert "No open ports found." in result.output
 
 
 def test_audit_command_handles_ssh_error():
@@ -379,10 +382,7 @@ def test_audit_command_handles_ssh_error():
     )
 
     with patch(
-        "app.cli.main.PortScanService.scan",
-        return_value=result_data,
-    ), patch(
-        "app.cli.main.SSHConnector",
+        "app.cli.main.AssessmentService.run",
         side_effect=paramiko.SSHException("connection failed"),
     ):
         result = runner.invoke(
