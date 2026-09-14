@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field, field_validator
 from app.core.config import DB_PATH
 from app.database.scan_repository import ScanRepository
 from app.models.report import SecurityReport
+from app.models.target import TargetType
 from app.services.assessment_job_service import AssessmentJobService
+from app.services.target_parser import TargetParser
 
 
 router = APIRouter(prefix="/api/v1")
@@ -31,6 +33,13 @@ class AssessmentRequest(BaseModel):
     def reject_blank_values(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("must not be blank")
+        return value
+
+    @field_validator("target")
+    @classmethod
+    def validate_target(cls, value: str) -> str:
+        if TargetParser.parse(value) == TargetType.INVALID:
+            raise ValueError("invalid target")
         return value
 
 
