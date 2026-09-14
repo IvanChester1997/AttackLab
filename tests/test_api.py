@@ -3,6 +3,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.database.scan_repository import ScanRepository
+from app.services.assessment_job_service import AssessmentJobService
 from app.main import app
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
@@ -36,7 +37,7 @@ def test_create_assessment(monkeypatch, tmp_path):
     )
 
     with patch(
-        "app.api.routes.AssessmentService.run",
+        "app.services.assessment_job_service.AssessmentService.run",
         return_value=make_report(),
     ):
         with TestClient(app) as client:
@@ -143,7 +144,7 @@ def test_get_scan_returns_404(monkeypatch, tmp_path):
     assert response.json()["detail"] == "Scan 999 not found"
 
 
-def test_run_assessment_completes_scan(monkeypatch, tmp_path):
+def test_assessment_job_completes_scan(monkeypatch, tmp_path):
     import asyncio
 
     db_path = tmp_path / "attacklab.db"
@@ -154,23 +155,16 @@ def test_run_assessment_completes_scan(monkeypatch, tmp_path):
     report = make_report("10.0.0.20")
 
     monkeypatch.setattr(
-        "app.api.routes.DB_PATH",
-        db_path,
-    )
-    monkeypatch.setattr(
-        "app.api.routes.AssessmentService.run",
+        "app.services.assessment_job_service.AssessmentService.run",
         lambda **kwargs: report,
     )
 
-    from app.api.routes import AssessmentRequest, run_assessment
-
     asyncio.run(
-        run_assessment(
+        AssessmentJobService.run(
+            repository,
             scan_id,
-            AssessmentRequest(
-                target="10.0.0.20",
-                ports="22,80",
-            ),
+            "10.0.0.20",
+            "22,80",
         )
     )
 
@@ -182,7 +176,7 @@ def test_run_assessment_completes_scan(monkeypatch, tmp_path):
     assert scan.error_message is None
 
 
-def test_run_assessment_marks_failed(monkeypatch, tmp_path):
+def test_assessment_job_marks_failed(monkeypatch, tmp_path):
     import asyncio
 
     db_path = tmp_path / "attacklab.db"
@@ -194,23 +188,16 @@ def test_run_assessment_marks_failed(monkeypatch, tmp_path):
         raise RuntimeError("Nmap execution failed")
 
     monkeypatch.setattr(
-        "app.api.routes.DB_PATH",
-        db_path,
-    )
-    monkeypatch.setattr(
-        "app.api.routes.AssessmentService.run",
+        "app.services.assessment_job_service.AssessmentService.run",
         fail_assessment,
     )
 
-    from app.api.routes import AssessmentRequest, run_assessment
-
     asyncio.run(
-        run_assessment(
+        AssessmentJobService.run(
+            repository,
             scan_id,
-            AssessmentRequest(
-                target="10.0.0.21",
-                ports="22,80",
-            ),
+            "10.0.0.21",
+            "22,80",
         )
     )
 

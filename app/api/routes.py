@@ -1,5 +1,3 @@
-import asyncio
-
 from enum import Enum
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path as FastAPIPath, Query
@@ -8,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.core.config import DB_PATH
 from app.database.scan_repository import ScanRepository
 from app.models.report import SecurityReport
-from app.services.assessment_service import AssessmentService
+from app.services.assessment_job_service import AssessmentJobService
 
 
 router = APIRouter(prefix="/api/v1")
@@ -57,33 +55,6 @@ def get_repository() -> ScanRepository:
     return ScanRepository(DB_PATH)
 
 
-async def run_assessment(
-    scan_id: int,
-    request: AssessmentRequest,
-) -> None:
-    repository = get_repository()
-
-    await repository.update_status(scan_id, "running")
-
-    try:
-        report = await asyncio.to_thread(
-            AssessmentService.run,
-            target=request.target,
-            ports=request.ports,
-            username=request.username,
-            ssh_port=request.ssh_port,
-            key_file=request.key_file,
-        )
-
-        await repository.complete_scan(scan_id, report)
-    except Exception as exc:
-        await repository.update_status(
-            scan_id,
-            "failed",
-            str(exc),
-        )
-
-
 @router.post(
     "/assessments",
     response_model=AssessmentResponse,
@@ -97,9 +68,14 @@ async def create_assessment(
     scan_id = await repository.create_scan(request.target)
 
     background_tasks.add_task(
-        run_assessment,
+        AssessmentJobService.run,
+        repository,
         scan_id,
-        request,
+        request.target,
+        request.ports,
+        request.username,
+        request.ssh_port,
+        request.key_file,
     )
 
     return AssessmentResponse(
