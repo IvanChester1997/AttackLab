@@ -156,35 +156,9 @@ class ScanRepository:
             await db.commit()
 
     async def save_report(self, report: SecurityReport) -> int:
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-
-        async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute(
-                """
-                INSERT INTO scan_history (
-                    target,
-                    target_type,
-                    status,
-                    risk_score,
-                    risk_level,
-                    total_findings,
-                    report_json
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    report.target,
-                    "host",
-                    "completed",
-                    report.summary.risk_score,
-                    report.summary.risk_level,
-                    report.summary.total_findings,
-                    report.model_dump_json(),
-                ),
-            )
-            await db.commit()
-
-            return cursor.lastrowid
+        scan_id = await self.create_scan(report.target)
+        await self.complete_scan(scan_id, report)
+        return scan_id
 
     async def get_report(self, scan_id: int) -> ScanHistory | None:
         async with aiosqlite.connect(self.db_path) as db:
