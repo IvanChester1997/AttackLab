@@ -219,3 +219,89 @@ def test_run_assessment_marks_failed(monkeypatch, tmp_path):
     assert scan is not None
     assert scan.status == "failed"
     assert scan.error_message == "Nmap execution failed"
+
+def test_create_assessment_rejects_blank_target(tmp_path, monkeypatch):
+    db_path = tmp_path / "attacklab.db"
+    monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
+    monkeypatch.setattr("app.database.db.DB_PATH", db_path)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/assessments",
+            json={"target": "   "},
+        )
+
+    assert response.status_code == 422
+
+
+def test_create_assessment_rejects_blank_ports(tmp_path, monkeypatch):
+    db_path = tmp_path / "attacklab.db"
+    monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
+    monkeypatch.setattr("app.database.db.DB_PATH", db_path)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/assessments",
+            json={"target": "127.0.0.1", "ports": "   "},
+        )
+
+    assert response.status_code == 422
+
+
+def test_create_assessment_rejects_invalid_ssh_port(tmp_path, monkeypatch):
+    db_path = tmp_path / "attacklab.db"
+    monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
+    monkeypatch.setattr("app.database.db.DB_PATH", db_path)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/assessments",
+            json={"target": "127.0.0.1", "ssh_port": 65536},
+        )
+
+    assert response.status_code == 422
+
+
+def test_get_scan_rejects_non_positive_id(tmp_path, monkeypatch):
+    db_path = tmp_path / "attacklab.db"
+    monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
+    monkeypatch.setattr("app.database.db.DB_PATH", db_path)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/scans/0")
+
+    assert response.status_code == 422
+
+
+def test_list_scans_contract(tmp_path, monkeypatch):
+    db_path = tmp_path / "attacklab.db"
+    repository = ScanRepository(db_path)
+
+    import asyncio
+
+    report = make_report("10.0.0.10")
+    asyncio.run(repository.init())
+    scan_id = asyncio.run(repository.create_scan("10.0.0.10"))
+    asyncio.run(repository.complete_scan(scan_id, report))
+
+    monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
+    monkeypatch.setattr("app.database.db.DB_PATH", db_path)
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/scans")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
+    assert data[0]["status"] == "completed"
+    assert set(data[0]) == {
+        "id",
+        "target",
+        "status",
+        "risk_score",
+        "risk_level",
+        "total_findings",
+        "error_message",
+    }

@@ -1,7 +1,9 @@
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
-from pydantic import BaseModel, Field
+from enum import Enum
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path as FastAPIPath, Query
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import DB_PATH
 from app.database.scan_repository import ScanRepository
@@ -12,18 +14,42 @@ from app.services.assessment_service import AssessmentService
 router = APIRouter(prefix="/api/v1")
 
 
+class AssessmentStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class AssessmentRequest(BaseModel):
-    target: str
-    ports: str = "22,80,443"
+    target: str = Field(min_length=1)
+    ports: str = Field(default="22,80,443", min_length=1)
     username: str | None = None
     ssh_port: int = Field(default=22, ge=1, le=65535)
     key_file: str | None = None
 
+    @field_validator("target", "ports")
+    @classmethod
+    def reject_blank_values(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
 
 class AssessmentResponse(BaseModel):
     id: int
-    status: str
+    status: AssessmentStatus
     report: SecurityReport | None = None
+    error_message: str | None = None
+
+
+class ScanSummaryResponse(BaseModel):
+    id: int
+    target: str
+    status: AssessmentStatus
+    risk_score: int
+    risk_level: str
+    total_findings: int
     error_message: str | None = None
 
 
@@ -78,11 +104,11 @@ async def create_assessment(
 
     return AssessmentResponse(
         id=scan_id,
-        status="pending",
+        status=AssessmentStatus.PENDING,
     )
 
 
-@router.get("/scans")
+@router.get("/scans", response_model=list[ScanSummaryResponse])
 async def list_scans(
     limit: int = Query(default=50, ge=1, le=100),
 ):
@@ -90,15 +116,15 @@ async def list_scans(
     history = await repository.list_history(limit=limit)
 
     return [
-        {
-            "id": item.id,
-            "target": item.target,
-            "status": item.status,
-            "risk_score": item.risk_score,
-            "risk_level": item.risk_level,
-            "total_findings": item.total_findings,
-            "error_message": item.error_message,
-        }
+        ScanSummaryResponse(
+            id=item.id,
+            target=item.target,
+            status=AssessmentStatus(item.status),
+            risk_score=item.risk_score,
+            risk_level=item.risk_level,
+            total_findings=item.total_findings,
+            error_message=item.error_message,
+        )
         for item in history
     ]
 
@@ -107,7 +133,9 @@ async def list_scans(
     "/scans/{scan_id}",
     response_model=AssessmentResponse,
 )
-async def get_scan(scan_id: int) -> AssessmentResponse:
+async def get_scan(
+    scan_id: int = FastAPIPath(..., ge=1),
+) -> AssessmentResponse:
     repository = get_repository()
     item = await repository.get_report(scan_id)
 
@@ -119,7 +147,7 @@ async def get_scan(scan_id: int) -> AssessmentResponse:
 
     return AssessmentResponse(
         id=item.id,
-        status=item.status,
+        status=AssessmentStatus(item.status),
         report=item.report if item.status == "completed" else None,
         error_message=item.error_message,
     )
