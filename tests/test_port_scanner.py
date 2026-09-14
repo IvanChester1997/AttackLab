@@ -12,9 +12,7 @@ PORT    STATE SERVICE
 443/tcp open  https
 """
 
-    with patch(
-        "app.scanners.port_scanner.subprocess.run"
-    ) as mock_run:
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
         mock_run.return_value.stdout = nmap_output
         mock_run.return_value.returncode = 0
 
@@ -44,9 +42,7 @@ PORT    STATE  SERVICE
 80/tcp  open   http
 """
 
-    with patch(
-        "app.scanners.port_scanner.subprocess.run"
-    ) as mock_run:
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
         mock_run.return_value.stdout = nmap_output
         mock_run.return_value.returncode = 0
 
@@ -57,9 +53,7 @@ PORT    STATE  SERVICE
 
 
 def test_scan_uses_nmap():
-    with patch(
-        "app.scanners.port_scanner.subprocess.run"
-    ) as mock_run:
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
         mock_run.return_value.stdout = """
 Starting Nmap
 PORT    STATE SERVICE
@@ -102,9 +96,7 @@ PORT   STATE SERVICE VERSION
 80/tcp open  http    nginx 1.24.0
 """
 
-    with patch(
-        "app.scanners.port_scanner.subprocess.run"
-    ) as mock_run:
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
         mock_run.return_value.stdout = nmap_output
         mock_run.return_value.returncode = 0
 
@@ -123,3 +115,40 @@ PORT   STATE SERVICE VERSION
     assert http.service.name == "http"
     assert http.service.product == "nginx"
     assert http.service.version == "1.24.0"
+
+
+def test_scan_parses_service_cpe_from_nmap_xml():
+    nmap_output = """<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun>
+  <host>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open"/>
+        <service
+          name="ssh"
+          product="OpenSSH"
+          version="9.2p1"
+          cpe="cpe:/a:openbsd:openssh:9.2p1"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>
+"""
+
+    with patch("app.scanners.port_scanner.subprocess.run") as mock_run:
+        mock_run.return_value.stdout = nmap_output
+        mock_run.return_value.returncode = 0
+
+        result = PortScanner.scan("127.0.0.1", ports="22")
+
+    assert len(result.ports) == 1
+
+    ssh = result.ports[0]
+
+    assert ssh.port == 22
+    assert ssh.protocol == "tcp"
+    assert ssh.state == "open"
+    assert ssh.service.name == "ssh"
+    assert ssh.service.product == "OpenSSH"
+    assert ssh.service.version == "9.2p1"
+    assert ssh.service.cpe == "cpe:/a:openbsd:openssh:9.2p1"
