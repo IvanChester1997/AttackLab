@@ -7,6 +7,7 @@ from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
 from app.services.assessment_job_service import AssessmentJobService
 from app.services.nvd_client import NVDClientError
+from app.scanners.port_scanner import PortScanError
 
 
 def make_report(target: str = "127.0.0.1") -> SecurityReport:
@@ -103,3 +104,29 @@ def test_run_marks_failed_when_nvd_assessment_fails(tmp_path):
     assert scan is not None
     assert scan.status == "failed"
     assert scan.error_message == "NVD API request failed"
+
+
+def test_run_marks_failed_when_port_scan_fails(tmp_path):
+    db_path = tmp_path / "attacklab.db"
+    repository = ScanRepository(db_path)
+    asyncio.run(repository.init())
+    scan_id = asyncio.run(repository.create_scan("10.0.0.23"))
+
+    with patch(
+        "app.services.assessment_job_service.AssessmentService.run",
+        side_effect=PortScanError("Nmap scan timed out"),
+    ):
+        asyncio.run(
+            AssessmentJobService.run(
+                repository,
+                scan_id,
+                "10.0.0.23",
+                "22,80",
+            )
+        )
+
+    scan = asyncio.run(repository.get_report(scan_id))
+
+    assert scan is not None
+    assert scan.status == "failed"
+    assert scan.error_message == "Nmap scan timed out"
