@@ -200,3 +200,51 @@ def test_report_generator_includes_linux_findings_in_risk_score():
     assert report.summary.high == 2
     assert report.summary.risk_score == 14
     assert report.summary.risk_level == "low"
+
+
+def test_report_generator_includes_vulnerability_findings():
+    from unittest.mock import Mock
+
+    scan_result = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=22,
+                protocol="tcp",
+                state="open",
+                service=ServiceInfo(
+                    name="ssh",
+                    product="OpenSSH",
+                    version="9.2p1",
+                    cpe="cpe:/a:openbsd:openssh:9.2p1",
+                ),
+            ),
+        ],
+    )
+
+    vulnerability_service = Mock()
+    vulnerability_service.assess.return_value = [
+        Finding(
+            title="CVE-2024-6387 - Potential vulnerability",
+            severity=Severity.HIGH,
+            description="OpenSSH vulnerability.",
+            port=22,
+            service="ssh",
+            product="OpenSSH",
+            version="9.2p1",
+            cve="CVE-2024-6387",
+        )
+    ]
+
+    report = ReportGenerator.generate(
+        scan_result,
+        vulnerability_assessment=vulnerability_service,
+    )
+
+    vulnerability_service.assess.assert_called_once_with(scan_result)
+    assert len(report.findings) == 2
+    assert report.findings[1].cve == "CVE-2024-6387"
+    assert report.summary.total_findings == 2
+    assert report.summary.high == 1
+    assert report.summary.low == 1
+    assert report.summary.risk_score == 9

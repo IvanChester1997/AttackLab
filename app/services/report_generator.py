@@ -5,6 +5,7 @@ from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
 from app.services.risk_engine import RiskEngine
+from app.services.vulnerability_assessment import VulnerabilityAssessmentService
 
 
 class ReportGenerator:
@@ -12,8 +13,15 @@ class ReportGenerator:
     def generate(
         scan_result: ScanResult,
         linux_audit: LinuxAuditResult | None = None,
+        vulnerability_assessment: VulnerabilityAssessmentService | None = None,
     ) -> SecurityReport:
         findings = RiskEngine.analyze(scan_result)
+
+        vulnerability_service = (
+            vulnerability_assessment
+            or VulnerabilityAssessmentService()
+        )
+        findings.extend(vulnerability_service.assess(scan_result))
 
         if linux_audit:
             findings.extend(linux_audit.findings)
