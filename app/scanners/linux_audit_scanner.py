@@ -1,5 +1,6 @@
 from app.connectors.ssh import SSHConnector
 from app.models.finding import Finding, Severity
+from app.models.finding import FindingEvidence
 from app.models.linux_audit import LinuxAuditResult
 from app.models.linux_user import LinuxUser
 
@@ -429,6 +430,24 @@ class LinuxAuditScanner:
 
         return findings
 
+    @staticmethod
+    def _add_finding_evidence(
+        findings: list[Finding],
+        check: str,
+    ) -> list[Finding]:
+        for finding in findings:
+            finding.evidence.append(
+                FindingEvidence(
+                    source="linux_audit",
+                    check=check,
+                    details={
+                        "observation": finding.description,
+                    },
+                )
+            )
+
+        return findings
+
     def run_audit(self) -> LinuxAuditResult:
         hostname = self.get_hostname()
         os_info = self.get_os_release()
@@ -441,23 +460,68 @@ class LinuxAuditScanner:
 
         findings = []
 
-        findings.extend(self._collect_privilege_findings(users))
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_privilege_findings(users),
+                "privilege_audit",
+            )
+        )
 
-        findings.extend(self.run_ssh_audit())
+        findings.extend(
+            self._add_finding_evidence(
+                self.run_ssh_audit(),
+                "ssh_hardening",
+            )
+        )
 
-        findings.extend(self._collect_filesystem_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_filesystem_findings(),
+                "filesystem_audit",
+            )
+        )
 
-        findings.extend(self._collect_cron_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_cron_findings(),
+                "cron_audit",
+            )
+        )
 
-        findings.extend(self._collect_authorized_keys_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_authorized_keys_findings(),
+                "authorized_keys_audit",
+            )
+        )
 
-        findings.extend(self._collect_password_policy_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_password_policy_findings(),
+                "password_policy_audit",
+            )
+        )
 
-        findings.extend(self._collect_sudoers_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_sudoers_findings(),
+                "sudoers_audit",
+            )
+        )
 
-        findings.extend(self._collect_ssh_host_key_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_ssh_host_key_findings(),
+                "ssh_host_key_audit",
+            )
+        )
 
-        findings.extend(self._collect_network_findings())
+        findings.extend(
+            self._add_finding_evidence(
+                self._collect_network_findings(),
+                "network_audit",
+            )
+        )
 
         return LinuxAuditResult(
             hostname=hostname,

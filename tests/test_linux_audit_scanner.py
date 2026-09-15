@@ -516,7 +516,7 @@ MaxAuthTries 6
 
     findings = scanner.detect_max_auth_tries_findings()
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == []
 
 
 def test_run_ssh_audit_reads_sshd_config_once_with_all_checks():
@@ -576,6 +576,42 @@ def test_detect_world_writable_findings():
     assert findings[1].title == "World-Writable File"
     assert findings[1].severity == "medium"
     assert "/var/tmp/test.log" in findings[1].description
+
+
+def test_run_audit_adds_evidence_to_linux_findings():
+    connector = Mock()
+
+    def execute(command):
+        if command == "hostname":
+            return "test-host"
+        if command == "cat /etc/os-release":
+            return 'NAME="Test Linux"'
+        if command == "cat /etc/passwd":
+            return "root:x:0:0:root:/root:/bin/bash"
+        if command == "cat /etc/ssh/sshd_config":
+            return "PermitRootLogin yes"
+        return ""
+
+    connector.execute.side_effect = execute
+
+    scanner = LinuxAuditScanner(connector)
+
+    result = scanner.run_audit()
+
+    findings = [
+        finding
+        for finding in result.findings
+        if finding.title == "PermitRootLogin Enabled"
+    ]
+
+    assert len(findings) == 1
+    assert len(findings[0].evidence) == 1
+    assert findings[0].evidence[0].source == "linux_audit"
+    assert findings[0].evidence[0].check == "ssh_hardening"
+    assert (
+        findings[0].evidence[0].details["observation"]
+        == findings[0].description
+    )
 
 
 def test_run_audit_includes_world_writable_findings():
@@ -1154,14 +1190,13 @@ def test_detect_listening_tcp_port_findings():
 
     findings = scanner.detect_listening_tcp_port_findings(ports)
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == [
         {
             "title": "Listening TCP Port Detected",
             "severity": "info",
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
             ),
-            "evidence": [],
         },
         {
             "title": "Listening TCP Port Detected",
@@ -1169,7 +1204,6 @@ def test_detect_listening_tcp_port_findings():
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:80"
             ),
-            "evidence": [],
         },
     ]
 
@@ -1180,7 +1214,7 @@ def test_detect_listening_tcp_port_findings_empty():
 
     findings = scanner.detect_listening_tcp_port_findings([])
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == []
 
 
 def test_run_audit_includes_listening_tcp_port_findings():
@@ -1207,14 +1241,13 @@ def test_run_audit_includes_listening_tcp_port_findings():
         if finding.title == "Listening TCP Port Detected"
     ]
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in listening_findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in listening_findings] == [
         {
             "title": "Listening TCP Port Detected",
             "severity": "info",
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
             ),
-            "evidence": [],
         }
     ]
 
@@ -1248,14 +1281,13 @@ def test_detect_listening_udp_port_findings():
 
     findings = scanner.detect_listening_udp_port_findings(ports)
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == [
         {
             "title": "Listening UDP Port Detected",
             "severity": "info",
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
             ),
-            "evidence": [],
         },
         {
             "title": "Listening UDP Port Detected",
@@ -1263,7 +1295,6 @@ def test_detect_listening_udp_port_findings():
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:123"
             ),
-            "evidence": [],
         },
     ]
 
@@ -1274,7 +1305,7 @@ def test_detect_listening_udp_port_findings_empty():
 
     findings = scanner.detect_listening_udp_port_findings([])
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == []
 
 
 def test_run_audit_includes_listening_udp_port_findings():
@@ -1304,14 +1335,13 @@ def test_run_audit_includes_listening_udp_port_findings():
         if finding.title == "Listening UDP Port Detected"
     ]
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in udp_findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in udp_findings] == [
         {
             "title": "Listening UDP Port Detected",
             "severity": "info",
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
             ),
-            "evidence": [],
         }
     ]
 
@@ -1353,13 +1383,12 @@ def test_detect_firewall_findings_policy_accept():
 
     findings = scanner.detect_firewall_findings(ruleset)
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == [
         {
             "title": "Firewall Input Policy Accept",
             "severity": "high",
             "description": "Firewall input policy is set to accept",
             "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
-            "evidence": [],
         }
     ]
 
@@ -1378,7 +1407,7 @@ def test_detect_firewall_findings_policy_drop():
 
     findings = scanner.detect_firewall_findings(ruleset)
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == []
 
 
 def test_detect_firewall_findings_empty():
@@ -1387,7 +1416,7 @@ def test_detect_firewall_findings_empty():
 
     findings = scanner.detect_firewall_findings([])
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in findings] == []
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in findings] == []
 
 
 def test_run_audit_includes_firewall_findings():
@@ -1420,12 +1449,11 @@ table inet filter {
         if finding.title == "Firewall Input Policy Accept"
     ]
 
-    assert [finding.model_dump(mode="json", exclude_none=True) for finding in firewall_findings] == [
+    assert [finding.model_dump(mode="json", exclude_none=True, exclude={"evidence"}) for finding in firewall_findings] == [
         {
             "title": "Firewall Input Policy Accept",
             "severity": "high",
             "description": "Firewall input policy is set to accept",
             "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
-            "evidence": [],
         }
     ]
