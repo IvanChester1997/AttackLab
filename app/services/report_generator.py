@@ -1,10 +1,10 @@
 import json
 
-from app.models.finding import Finding, Severity
-from app.reporting.html_report import HTMLReportRenderer
+from app.models.finding import Severity
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
+from app.reporting.html_report import HTMLReportRenderer
 from app.services.risk_engine import RiskEngine
 from app.services.vulnerability_assessment import VulnerabilityAssessmentService
 
@@ -19,8 +19,7 @@ class ReportGenerator:
         findings = RiskEngine.analyze(scan_result)
 
         vulnerability_service = (
-            vulnerability_assessment
-            or VulnerabilityAssessmentService()
+            vulnerability_assessment or VulnerabilityAssessmentService()
         )
         findings.extend(vulnerability_service.assess(scan_result))
 
@@ -35,26 +34,11 @@ class ReportGenerator:
             total_findings=len(findings),
             risk_score=risk_score,
             risk_level=risk_level,
-            critical=sum(
-                finding.severity == Severity.CRITICAL
-                for finding in findings
-            ),
-            high=sum(
-                finding.severity == Severity.HIGH
-                for finding in findings
-            ),
-            medium=sum(
-                finding.severity == Severity.MEDIUM
-                for finding in findings
-            ),
-            low=sum(
-                finding.severity == Severity.LOW
-                for finding in findings
-            ),
-            info=sum(
-                finding.severity == Severity.INFO
-                for finding in findings
-            ),
+            critical=sum(finding.severity == Severity.CRITICAL for finding in findings),
+            high=sum(finding.severity == Severity.HIGH for finding in findings),
+            medium=sum(finding.severity == Severity.MEDIUM for finding in findings),
+            low=sum(finding.severity == Severity.LOW for finding in findings),
+            info=sum(finding.severity == Severity.INFO for finding in findings),
         )
 
         return SecurityReport(

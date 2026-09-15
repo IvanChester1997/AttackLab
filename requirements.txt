@@ -7,3 +7,4 @@ pytest-cov
 typer
 httpx2
 uvicorn
+packaging

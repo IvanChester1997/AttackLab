@@ -55,9 +55,7 @@ def test_lookup_cves_returns_empty_list_when_nvd_has_no_results():
         "app.services.nvd_client.urlopen",
         return_value=FakeResponse(json.dumps(payload).encode()),
     ):
-        result = NVDClient().lookup_cves(
-            "cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*"
-        )
+        result = NVDClient().lookup_cves("cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*")
 
     assert result == []
 
@@ -73,22 +71,22 @@ def test_lookup_cves_raises_on_http_error():
         fp=None,
     )
 
-    with patch(
-        "app.services.nvd_client.urlopen",
-        side_effect=error,
+    with (
+        patch(
+            "app.services.nvd_client.urlopen",
+            side_effect=error,
+        ),
+        pytest.raises(NVDClientError, match="NVD API request failed"),
     ):
-        with pytest.raises(NVDClientError, match="NVD API request failed"):
-            NVDClient().lookup_cves(
-                "cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*"
-            )
+        NVDClient().lookup_cves("cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*")
 
 
 def test_lookup_cves_raises_on_invalid_json():
-    with patch(
-        "app.services.nvd_client.urlopen",
-        return_value=FakeResponse(b"not-json"),
+    with (
+        patch(
+            "app.services.nvd_client.urlopen",
+            return_value=FakeResponse(b"not-json"),
+        ),
+        pytest.raises(NVDClientError, match="invalid JSON"),
     ):
-        with pytest.raises(NVDClientError, match="invalid JSON"):
-            NVDClient().lookup_cves(
-                "cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*"
-            )
+        NVDClient().lookup_cves("cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*")

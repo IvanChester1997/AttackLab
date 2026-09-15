@@ -12,7 +12,6 @@ def test_root():
     assert response.json()["project"] == "AttackLab"
 
 
-
 def test_health():
     response = client.get("/health")
 

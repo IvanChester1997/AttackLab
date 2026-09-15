@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.models.finding import Finding, Severity
+from app.models.finding import Finding
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult
 

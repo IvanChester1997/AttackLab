@@ -1,7 +1,7 @@
 from pathlib import Path
-import paramiko
 from unittest.mock import patch
 
+import paramiko
 from typer.testing import CliRunner
 
 from app.cli.main import app
@@ -9,8 +9,6 @@ from app.models.finding import Finding, Severity
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import PortResult, ScanResult
 from app.models.report import ReportSummary, SecurityReport
-from app.services.assessment_service import AssessmentService
-
 
 runner = CliRunner()
 
@@ -376,11 +374,6 @@ def test_audit_command_runs_linux_audit():
 
 
 def test_audit_command_handles_ssh_error():
-    result_data = ScanResult(
-        target="127.0.0.1",
-        ports=[],
-    )
-
     with patch(
         "app.cli.main.AssessmentService.run",
         side_effect=paramiko.SSHException("connection failed"),

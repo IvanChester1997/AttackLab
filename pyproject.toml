@@ -1,0 +1,4 @@
+[tool.ruff]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option"]

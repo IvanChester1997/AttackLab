@@ -35,18 +35,20 @@ def test_create_assessment(monkeypatch, tmp_path):
         db_path,
     )
 
-    with patch(
-        "app.services.assessment_job_service.AssessmentService.run",
-        return_value=make_report(),
+    with (
+        patch(
+            "app.services.assessment_job_service.AssessmentService.run",
+            return_value=make_report(),
+        ),
+        TestClient(app) as client,
     ):
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/v1/assessments",
-                json={
-                    "target": "127.0.0.1",
-                    "ports": "22,80",
-                },
-            )
+        response = client.post(
+            "/api/v1/assessments",
+            json={
+                "target": "127.0.0.1",
+                "ports": "22,80",
+            },
+        )
 
     assert response.status_code == 202
 
@@ -157,7 +159,6 @@ def test_create_assessment_rejects_blank_target(tmp_path, monkeypatch):
     assert response.status_code == 422
 
 
-
 def test_create_assessment_rejects_invalid_target(tmp_path, monkeypatch):
     db_path = tmp_path / "attacklab.db"
 
@@ -179,17 +180,19 @@ def test_create_assessment_accepts_hostname(tmp_path, monkeypatch):
     monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
     monkeypatch.setattr("app.database.db.DB_PATH", db_path)
 
-    with patch(
-        "app.api.routes.AssessmentJobService.run",
+    with (
+        patch(
+            "app.api.routes.AssessmentJobService.run",
+        ),
+        TestClient(app) as client,
     ):
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/v1/assessments",
-                json={
-                    "target": "scanme.nmap.org",
-                    "ports": "22,80",
-                },
-            )
+        response = client.post(
+            "/api/v1/assessments",
+            json={
+                "target": "scanme.nmap.org",
+                "ports": "22,80",
+            },
+        )
 
     assert response.status_code == 202
     assert response.json()["status"] == "pending"
@@ -201,17 +204,19 @@ def test_create_assessment_accepts_network(tmp_path, monkeypatch):
     monkeypatch.setattr("app.api.routes.DB_PATH", db_path)
     monkeypatch.setattr("app.database.db.DB_PATH", db_path)
 
-    with patch(
-        "app.api.routes.AssessmentJobService.run",
+    with (
+        patch(
+            "app.api.routes.AssessmentJobService.run",
+        ),
+        TestClient(app) as client,
     ):
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/v1/assessments",
-                json={
-                    "target": "192.168.1.0/30",
-                    "ports": "22",
-                },
-            )
+        response = client.post(
+            "/api/v1/assessments",
+            json={
+                "target": "192.168.1.0/30",
+                "ports": "22",
+            },
+        )
 
     assert response.status_code == 202
     assert response.json()["status"] == "pending"

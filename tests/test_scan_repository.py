@@ -1,8 +1,8 @@
 import asyncio
 import json
 
-import pytest
 import aiosqlite
+import pytest
 
 from app.database.scan_repository import ScanRepository
 from app.models.port import ScanResult
@@ -67,11 +67,15 @@ async def _test_save_report_persists_security_report(tmp_path, report):
 
 
 def test_create_scan_persists_network_target_type(tmp_path):
-    asyncio.run(_test_create_scan_persists_target_type(tmp_path, "192.168.1.0/24", "network"))
+    asyncio.run(
+        _test_create_scan_persists_target_type(tmp_path, "192.168.1.0/24", "network")
+    )
 
 
 def test_create_scan_persists_hostname_target_type(tmp_path):
-    asyncio.run(_test_create_scan_persists_target_type(tmp_path, "scanme.nmap.org", "hostname"))
+    asyncio.run(
+        _test_create_scan_persists_target_type(tmp_path, "scanme.nmap.org", "hostname")
+    )
 
 
 async def _test_create_scan_persists_target_type(

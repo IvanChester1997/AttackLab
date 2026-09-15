@@ -1,7 +1,7 @@
 from app.models.finding import Finding, Severity
 from app.models.port import PortResult, ScanResult
-from app.models.service import ServiceInfo
 from app.models.report import ReportSummary, SecurityReport
+from app.models.service import ServiceInfo
 from app.services.report_generator import ReportGenerator
 
 

@@ -14,3 +14,5 @@ htmlcov/
 .vscode/
 
 reports/
+
+coverage.xml

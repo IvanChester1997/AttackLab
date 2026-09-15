@@ -28,5 +28,5 @@ class AssessmentJobService:
                 key_file=key_file,
             )
             await repository.complete_scan(scan_id, report)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             await repository.update_status(scan_id, "failed", str(exc))

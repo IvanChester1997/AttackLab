@@ -16,6 +16,7 @@ class NmapScanner:
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
 
         return result.stdout

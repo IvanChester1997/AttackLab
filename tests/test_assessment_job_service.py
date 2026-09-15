@@ -1,13 +1,12 @@
 import asyncio
-
 from unittest.mock import patch
 
 from app.database.scan_repository import ScanRepository
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
+from app.scanners.port_scanner import PortScanError
 from app.services.assessment_job_service import AssessmentJobService
 from app.services.nvd_client import NVDClientError
-from app.scanners.port_scanner import PortScanError
 
 
 def make_report(target: str = "127.0.0.1") -> SecurityReport:

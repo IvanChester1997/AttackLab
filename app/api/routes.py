@@ -1,6 +1,7 @@
 from enum import Enum
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path as FastAPIPath, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import Path as FastAPIPath
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import DB_PATH
@@ -9,7 +10,6 @@ from app.models.report import SecurityReport
 from app.models.target import TargetType
 from app.services.assessment_job_service import AssessmentJobService
 from app.services.target_parser import TargetParser
-
 
 router = APIRouter(prefix="/api/v1")
 
@@ -152,9 +152,7 @@ async def list_scans(
     "/scans/{scan_id}",
     response_model=AssessmentResponse,
     summary="Get assessment result",
-    description=(
-        "Return the lifecycle state and report for a specific assessment."
-    ),
+    description=("Return the lifecycle state and report for a specific assessment."),
 )
 async def get_scan(
     scan_id: int = FastAPIPath(..., ge=1),

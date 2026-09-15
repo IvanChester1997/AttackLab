@@ -7,7 +7,6 @@ from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
 from app.services.target_parser import TargetParser
 
-
 CREATE_SCAN_HISTORY_TABLE = """
 CREATE TABLE IF NOT EXISTS scan_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,9 +46,7 @@ class ScanRepository:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(CREATE_SCAN_HISTORY_TABLE)
 
-            columns = await db.execute_fetchall(
-                "PRAGMA table_info(scan_history)"
-            )
+            columns = await db.execute_fetchall("PRAGMA table_info(scan_history)")
             column_names = {column[1] for column in columns}
 
             if "error_message" not in column_names:

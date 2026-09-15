@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 from app.models.port import PortResult, ScanResult
 from app.models.service import ServiceInfo
 
-
 DEFAULT_PORTS = "22,80,443"
 
 

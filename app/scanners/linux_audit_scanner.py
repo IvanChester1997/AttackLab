@@ -1,6 +1,5 @@
 from app.connectors.ssh import SSHConnector
-from app.models.finding import Finding, Severity
-from app.models.finding import FindingEvidence
+from app.models.finding import Finding, FindingEvidence, Severity
 from app.models.linux_audit import LinuxAuditResult
 from app.models.linux_user import LinuxUser
 
@@ -158,9 +157,7 @@ class LinuxAuditScanner:
             Finding(
                 title="Additional UID 0 Account",
                 severity=Severity.HIGH,
-                description=(
-                    f"Additional UID 0 account detected: " f"{user.username}"
-                ),
+                description=(f"Additional UID 0 account detected: {user.username}"),
             )
             for user in extra_users
         ]
@@ -233,20 +230,16 @@ class LinuxAuditScanner:
         findings = []
 
         world_writable_files = self.get_world_writable_files()
-        findings.extend(
-            self.detect_world_writable_findings(world_writable_files)
-        )
+        findings.extend(self.detect_world_writable_findings(world_writable_files))
 
         suid_sgid_files = self.get_suid_sgid_files()
-        findings.extend(
-            self.detect_suid_sgid_findings(suid_sgid_files)
-        )
+        findings.extend(self.detect_suid_sgid_findings(suid_sgid_files))
 
         return findings
 
     def get_cron_entries(self) -> list[str]:
         command = (
-            "find /etc/cron.d /etc/cron.daily " "-type f 2>/dev/null | sort | head -100"
+            "find /etc/cron.d /etc/cron.daily -type f 2>/dev/null | sort | head -100"
         )
 
         output = self.connector.execute(command)
@@ -540,9 +533,7 @@ class LinuxAuditScanner:
         findings.extend(self.detect_cron_findings(cron_entries))
 
         writable_cron_files = self.get_writable_cron_files()
-        findings.extend(
-            self.detect_writable_cron_findings(writable_cron_files)
-        )
+        findings.extend(self.detect_writable_cron_findings(writable_cron_files))
 
         return findings
 
@@ -590,13 +581,7 @@ class LinuxAuditScanner:
         return self.detect_nopasswd_sudo_findings(sudoers_entries)
 
     def get_authorized_keys_files(self) -> list[str]:
-        command = (
-            "find / "
-            "-xdev "
-            "-type f "
-            "-name authorized_keys "
-            "2>/dev/null | head -100"
-        )
+        command = "find / -xdev -type f -name authorized_keys 2>/dev/null | head -100"
 
         output = self.connector.execute(command)
 
@@ -632,8 +617,7 @@ class LinuxAuditScanner:
                 title="Writable Authorized Keys File",
                 severity=Severity.HIGH,
                 description=(
-                    f"Group/world-writable authorized_keys file detected: "
-                    f"{file_path}"
+                    f"Group/world-writable authorized_keys file detected: {file_path}"
                 ),
             )
             for file_path in files
@@ -661,9 +645,7 @@ class LinuxAuditScanner:
         findings = []
 
         authorized_keys_files = self.get_authorized_keys_files()
-        findings.extend(
-            self.detect_authorized_keys_findings(authorized_keys_files)
-        )
+        findings.extend(self.detect_authorized_keys_findings(authorized_keys_files))
 
         writable_authorized_keys_files = self.get_writable_authorized_keys_files()
         findings.extend(
@@ -754,19 +736,15 @@ class LinuxAuditScanner:
         findings.extend(self.detect_firewall_findings(firewall_ruleset))
 
         listening_tcp_ports = self.get_listening_tcp_ports()
-        findings.extend(
-            self.detect_listening_tcp_port_findings(listening_tcp_ports)
-        )
+        findings.extend(self.detect_listening_tcp_port_findings(listening_tcp_ports))
 
         listening_udp_ports = self.get_listening_udp_ports()
-        findings.extend(
-            self.detect_listening_udp_port_findings(listening_udp_ports)
-        )
+        findings.extend(self.detect_listening_udp_port_findings(listening_udp_ports))
 
         return findings
 
     def get_listening_tcp_ports(self) -> list[str]:
-        command = "ss -lnt " "| tail -n +2 " "| head -100"
+        command = "ss -lnt | tail -n +2 | head -100"
 
         output = self.connector.execute(command)
 
@@ -774,7 +752,7 @@ class LinuxAuditScanner:
 
     def get_password_policy(self) -> dict[str, str]:
         output = self.connector.execute(
-            "grep -E '^(PASS_MAX_DAYS|PASS_MIN_DAYS|PASS_WARN_AGE)' " "/etc/login.defs"
+            "grep -E '^(PASS_MAX_DAYS|PASS_MIN_DAYS|PASS_WARN_AGE)' /etc/login.defs"
         )
 
         result = {}
@@ -799,33 +777,31 @@ class LinuxAuditScanner:
 
         max_days = policy.get("PASS_MAX_DAYS")
 
-        if max_days and max_days.isdigit():
-            if int(max_days) > 90:
-                findings.append(
-                    Finding(
-                        title="Weak Password Expiration Policy",
-                        severity=Severity.MEDIUM,
-                        description=(
-                            f"PASS_MAX_DAYS is set to {max_days}. "
-                            "Recommended value is 90 days or less."
-                        ),
-                    )
+        if max_days and max_days.isdigit() and int(max_days) > 90:
+            findings.append(
+                Finding(
+                    title="Weak Password Expiration Policy",
+                    severity=Severity.MEDIUM,
+                    description=(
+                        f"PASS_MAX_DAYS is set to {max_days}. "
+                        "Recommended value is 90 days or less."
+                    ),
                 )
+            )
 
         warn_age = policy.get("PASS_WARN_AGE")
 
-        if warn_age and warn_age.isdigit():
-            if int(warn_age) < 7:
-                findings.append(
-                    Finding(
-                        title="Weak Password Warning Policy",
-                        severity=Severity.LOW,
-                        description=(
-                            f"PASS_WARN_AGE is set to {warn_age}. "
-                            "Recommended value is at least 7 days."
-                        ),
-                    )
+        if warn_age and warn_age.isdigit() and int(warn_age) < 7:
+            findings.append(
+                Finding(
+                    title="Weak Password Warning Policy",
+                    severity=Severity.LOW,
+                    description=(
+                        f"PASS_WARN_AGE is set to {warn_age}. "
+                        "Recommended value is at least 7 days."
+                    ),
                 )
+            )
 
         return findings
 

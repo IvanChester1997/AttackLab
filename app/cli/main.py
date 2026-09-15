@@ -3,14 +3,10 @@ from pathlib import Path
 import paramiko
 import typer
 
-from app.connectors.ssh import SSHConnector
 from app.services.assessment_service import AssessmentService
 from app.services.report_generator import ReportGenerator
 
-
-app = typer.Typer(
-    help="AttackLab - Automated Pentest Laboratory"
-)
+app = typer.Typer(help="AttackLab - Automated Pentest Laboratory")
 
 
 @app.callback()
@@ -18,7 +14,6 @@ def main():
     """
     AttackLab CLI
     """
-    pass
 
 
 @app.command("version")
@@ -88,11 +83,7 @@ def _run_audit(
         else:
             service = "unknown"
 
-        typer.echo(
-            f"{port.port}/{port.protocol} "
-            f"{port.state} "
-            f"{service}"
-        )
+        typer.echo(f"{port.port}/{port.protocol} {port.state} {service}")
 
     typer.echo("")
     typer.echo("Findings:")
@@ -101,10 +92,7 @@ def _run_audit(
 
     if findings:
         for finding in findings:
-            typer.echo(
-                f"[{finding.severity.value.upper()}] "
-                f"{finding.title}"
-            )
+            typer.echo(f"[{finding.severity.value.upper()}] {finding.title}")
     else:
         typer.echo("No security findings.")
 

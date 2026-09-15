@@ -4,6 +4,7 @@ import pytest
 
 from app.connectors.ssh import SSHConnector
 
+
 @pytest.mark.integration
 def test_execute_remote_command():
     connector = SSHConnector(
@@ -29,9 +30,12 @@ def test_connect_creates_client_and_rejects_unknown_host_key():
     client = Mock()
     policy = Mock()
 
-    with patch("app.connectors.ssh.paramiko.SSHClient", return_value=client) as ssh_client, \
-         patch("app.connectors.ssh.paramiko.RejectPolicy", return_value=policy):
-
+    with (
+        patch(
+            "app.connectors.ssh.paramiko.SSHClient", return_value=client
+        ) as ssh_client,
+        patch("app.connectors.ssh.paramiko.RejectPolicy", return_value=policy),
+    ):
         connector.connect()
 
     ssh_client.assert_called_once_with()

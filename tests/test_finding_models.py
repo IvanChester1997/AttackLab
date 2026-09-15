@@ -58,12 +58,7 @@ def test_finding_supports_cvss_and_evidence():
             FindingEvidence(
                 source="nvd",
                 check="cve_match",
-                details={
-                    "cpe": (
-                        "cpe:2.3:a:openbsd:openssh:9.2p1:"
-                        "*:*:*:*:*:*:*"
-                    )
-                },
+                details={"cpe": ("cpe:2.3:a:openbsd:openssh:9.2p1:*:*:*:*:*:*:*")},
             )
         ],
     )

@@ -21,9 +21,7 @@ class CvssInfo(BaseModel):
 class FindingEvidence(BaseModel):
     source: str
     check: str | None = None
-    details: dict[str, str | int | float | bool | None] = Field(
-        default_factory=dict
-    )
+    details: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
 
 class Finding(BaseModel):

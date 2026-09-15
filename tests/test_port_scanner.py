@@ -77,15 +77,17 @@ PORT    STATE SERVICE
 def test_scan_raises_on_timeout():
     import subprocess
 
-    with patch(
-        "app.scanners.port_scanner.subprocess.run",
-        side_effect=subprocess.TimeoutExpired(
-            cmd=["nmap"],
-            timeout=60,
+    with (
+        patch(
+            "app.scanners.port_scanner.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(
+                cmd=["nmap"],
+                timeout=60,
+            ),
         ),
+        pytest.raises(PortScanError, match="timed out"),
     ):
-        with pytest.raises(PortScanError, match="timed out"):
-            PortScanner.scan("127.0.0.1")
+        PortScanner.scan("127.0.0.1")
 
 
 def test_scan_raises_on_nmap_failure():

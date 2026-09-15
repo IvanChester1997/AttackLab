@@ -27,17 +27,14 @@ class HTMLReportRenderer:
 
                 if item.details:
                     details = ", ".join(
-                        f"{key}={value}"
-                        for key, value in item.details.items()
+                        f"{key}={value}" for key, value in item.details.items()
                     )
                     label += f": {details}"
 
                 evidence.append(f"<li>{esc(label)}</li>")
 
             evidence_html = (
-                "<ul>" + "".join(evidence) + "</ul>"
-                if evidence
-                else "<em>None</em>"
+                "<ul>" + "".join(evidence) + "</ul>" if evidence else "<em>None</em>"
             )
 
             findings.append(
@@ -59,17 +56,15 @@ class HTMLReportRenderer:
             )
 
         findings_html = (
-            "".join(findings)
-            if findings
-            else "<p>No security findings.</p>"
+            "".join(findings) if findings else "<p>No security findings.</p>"
         )
 
         return (
             "<!DOCTYPE html>"
-            "<html lang=\"en\">"
+            '<html lang="en">'
             "<head>"
-            "<meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            '<meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f"<title>AttackLab Security Report - {esc(report.target)}</title>"
             "<style>"
             "body{font-family:Arial,sans-serif;max-width:1100px;"
@@ -84,31 +79,31 @@ class HTMLReportRenderer:
             "</head>"
             "<body>"
             "<h1>AttackLab Security Report</h1>"
-            "<div class=\"card\">"
+            '<div class="card">'
             "<h2>Assessment</h2>"
             f"<p><strong>Target:</strong> {esc(report.target)}</p>"
             f"<p><strong>Risk level:</strong> "
             f"{esc(report.summary.risk_level)}</p>"
             "</div>"
-            "<div class=\"summary\">"
-            f"<div class=\"metric\"><strong>Risk Score</strong><br>"
+            '<div class="summary">'
+            f'<div class="metric"><strong>Risk Score</strong><br>'
             f"{esc(report.summary.risk_score)}/100</div>"
-            f"<div class=\"metric\"><strong>Ports</strong><br>"
+            f'<div class="metric"><strong>Ports</strong><br>'
             f"{esc(report.summary.total_ports)}</div>"
-            f"<div class=\"metric\"><strong>Findings</strong><br>"
+            f'<div class="metric"><strong>Findings</strong><br>'
             f"{esc(report.summary.total_findings)}</div>"
-            f"<div class=\"metric\"><strong>Critical</strong><br>"
+            f'<div class="metric"><strong>Critical</strong><br>'
             f"{esc(report.summary.critical)}</div>"
-            f"<div class=\"metric\"><strong>High</strong><br>"
+            f'<div class="metric"><strong>High</strong><br>'
             f"{esc(report.summary.high)}</div>"
-            f"<div class=\"metric\"><strong>Medium</strong><br>"
+            f'<div class="metric"><strong>Medium</strong><br>'
             f"{esc(report.summary.medium)}</div>"
-            f"<div class=\"metric\"><strong>Low</strong><br>"
+            f'<div class="metric"><strong>Low</strong><br>'
             f"{esc(report.summary.low)}</div>"
-            f"<div class=\"metric\"><strong>Info</strong><br>"
+            f'<div class="metric"><strong>Info</strong><br>'
             f"{esc(report.summary.info)}</div>"
             "</div>"
-            "<div class=\"card\">"
+            '<div class="card">'
             "<h2>Findings</h2>"
             f"{findings_html}"
             "</div>"

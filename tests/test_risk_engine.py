@@ -53,9 +53,7 @@ def test_telnet_gets_high_severity():
     assert len(findings) == 1
     assert findings[0].severity == Severity.HIGH
     assert findings[0].service == "telnet"
-    assert findings[0].remediation == (
-        "Disable Telnet and use SSH instead."
-    )
+    assert findings[0].remediation == ("Disable Telnet and use SSH instead.")
 
 
 def test_ftp_gets_medium_severity():

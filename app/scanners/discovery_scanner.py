@@ -6,9 +6,7 @@ from app.models.discovery import DiscoveryResult
 class DiscoveryScanner:
     @staticmethod
     def tcp_discover(
-        target: str,
-        port: int = 80,
-        timeout: float = 1.0
+        target: str, port: int = 80, timeout: float = 1.0
     ) -> DiscoveryResult:
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,8 +18,4 @@ class DiscoveryScanner:
         finally:
             sock.close()
 
-        return DiscoveryResult(
-            target=target,
-            alive=alive,
-            method="tcp"
-        )
+        return DiscoveryResult(target=target, alive=alive, method="tcp")

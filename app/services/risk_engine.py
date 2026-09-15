@@ -1,6 +1,7 @@
+from typing import ClassVar
+
 from app.models.finding import Finding, FindingEvidence, Severity
 from app.models.port import ScanResult
-
 
 SERVICE_RISK_RULES = {
     "telnet": {
@@ -27,7 +28,7 @@ SERVICE_RISK_RULES = {
 
 
 class RiskEngine:
-    SEVERITY_SCORES = {
+    SEVERITY_SCORES: ClassVar[dict[Severity, int]] = {
         Severity.INFO: 0,
         Severity.LOW: 2,
         Severity.MEDIUM: 4,
@@ -86,10 +87,7 @@ class RiskEngine:
 
     @classmethod
     def calculate_score(cls, findings: list[Finding]) -> int:
-        score = sum(
-            cls.SEVERITY_SCORES[finding.severity]
-            for finding in findings
-        )
+        score = sum(cls.SEVERITY_SCORES[finding.severity] for finding in findings)
 
         return min(score, 100)
 

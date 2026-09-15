@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 import paramiko
+import pytest
 
 from app.models.port import ScanResult
 from app.models.report import SecurityReport
@@ -101,9 +101,9 @@ def test_run_propagates_ssh_errors():
             "app.services.assessment_service.SSHConnector",
             side_effect=paramiko.SSHException("connection failed"),
         ),
+        pytest.raises(paramiko.SSHException, match="connection failed"),
     ):
-        with pytest.raises(paramiko.SSHException, match="connection failed"):
-            AssessmentService.run(
-                "10.0.0.10",
-                username="root",
-            )
+        AssessmentService.run(
+            "10.0.0.10",
+            username="root",
+        )

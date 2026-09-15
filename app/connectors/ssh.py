@@ -23,9 +23,7 @@ class SSHConnector:
 
         client = paramiko.SSHClient()
         client.load_system_host_keys()
-        client.set_missing_host_key_policy(
-            paramiko.RejectPolicy()
-        )
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
         kwargs = {
             "hostname": self.host,
@@ -35,9 +33,7 @@ class SSHConnector:
         }
 
         if self.key_file:
-            kwargs["key_filename"] = str(
-                Path(self.key_file).expanduser()
-            )
+            kwargs["key_filename"] = str(Path(self.key_file).expanduser())
 
         try:
             client.connect(**kwargs)
@@ -50,7 +46,7 @@ class SSHConnector:
     def execute(self, command: str) -> str:
         self.connect()
 
-        stdin, stdout, stderr = self._client.exec_command(command)
+        _stdin, stdout, stderr = self._client.exec_command(command)
 
         output = stdout.read().decode().strip()
         error = stderr.read().decode().strip()
