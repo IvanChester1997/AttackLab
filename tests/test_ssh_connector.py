@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -45,7 +46,7 @@ def test_connect_creates_client_and_rejects_unknown_host_key():
         username="root",
         port=2222,
         timeout=10,
-        key_filename="/root/.ssh/id_ed25519",
+        key_filename=str(Path("~/.ssh/id_ed25519").expanduser()),
     )
     assert connector._client is client
 
