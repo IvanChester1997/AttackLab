@@ -22,11 +22,34 @@ class AssessmentStatus(str, Enum):
 
 
 class AssessmentRequest(BaseModel):
-    target: str = Field(min_length=1)
-    ports: str = Field(default="22,80,443", min_length=1)
-    username: str | None = None
-    ssh_port: int = Field(default=22, ge=1, le=65535)
-    key_file: str | None = None
+    target: str = Field(
+        min_length=1,
+        description="IPv4/IPv6 host, CIDR network, or hostname.",
+        examples=["127.0.0.1"],
+    )
+    ports: str = Field(
+        default="22,80,443",
+        min_length=1,
+        description="Ports or port ranges passed to Nmap.",
+        examples=["22,80,443"],
+    )
+    username: str | None = Field(
+        default=None,
+        description="SSH username for optional Linux audit.",
+        examples=["root"],
+    )
+    ssh_port: int = Field(
+        default=22,
+        ge=1,
+        le=65535,
+        description="SSH port used for Linux audit.",
+        examples=[22],
+    )
+    key_file: str | None = Field(
+        default=None,
+        description="Path to the SSH private key used for Linux audit.",
+        examples=["~/.ssh/id_ed25519"],
+    )
 
     @field_validator("target", "ports")
     @classmethod
@@ -68,6 +91,12 @@ def get_repository() -> ScanRepository:
     "/assessments",
     response_model=AssessmentResponse,
     status_code=202,
+    summary="Start a security assessment",
+    description=(
+        "Create a background security assessment. The API returns immediately "
+        "with a pending assessment ID; poll the scan endpoint for completion."
+    ),
+    response_description="Assessment accepted and queued for background execution.",
 )
 async def create_assessment(
     request: AssessmentRequest,
@@ -93,7 +122,12 @@ async def create_assessment(
     )
 
 
-@router.get("/scans", response_model=list[ScanSummaryResponse])
+@router.get(
+    "/scans",
+    response_model=list[ScanSummaryResponse],
+    summary="List scan history",
+    description="Return recent assessment summaries ordered from newest to oldest.",
+)
 async def list_scans(
     limit: int = Query(default=50, ge=1, le=100),
 ):
@@ -117,6 +151,10 @@ async def list_scans(
 @router.get(
     "/scans/{scan_id}",
     response_model=AssessmentResponse,
+    summary="Get assessment result",
+    description=(
+        "Return the lifecycle state and report for a specific assessment."
+    ),
 )
 async def get_scan(
     scan_id: int = FastAPIPath(..., ge=1),

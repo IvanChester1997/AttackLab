@@ -14,7 +14,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AttackLab",
+    description=(
+        "Automated security assessment platform for authorized defensive "
+        "security testing. Provides network discovery, service enumeration, "
+        "vulnerability mapping, Linux security auditing, risk scoring, and "
+        "JSON/HTML reporting."
+    ),
     version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
     lifespan=lifespan,
 )
 
@@ -22,11 +30,26 @@ app = FastAPI(
 app.include_router(router)
 
 
-@app.get("/")
+@app.get(
+    "/",
+    summary="AttackLab service status",
+    description="Returns the basic runtime status of the AttackLab API.",
+)
 async def root():
     return {
         "project": "AttackLab",
         "status": "running",
+    }
+
+
+@app.get(
+    "/health",
+    summary="Health check",
+    description="Returns HTTP 200 when the AttackLab API process is healthy.",
+)
+async def health():
+    return {
+        "status": "healthy",
     }
 
 
