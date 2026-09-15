@@ -43,6 +43,26 @@ def test_lookup_cves_returns_vulnerabilities():
     assert "cpeName=cpe%3A2.3%3Aa%3Aopenbsd%3Aopenssh%3A9.2p1" in request.full_url
 
 
+def test_lookup_cves_uses_custom_base_url():
+    payload = {
+        "resultsPerPage": 0,
+        "startIndex": 0,
+        "totalResults": 0,
+        "vulnerabilities": [],
+    }
+
+    with patch(
+        "app.services.nvd_client.urlopen",
+        return_value=FakeResponse(json.dumps(payload).encode()),
+    ) as mock_urlopen:
+        NVDClient(base_url="http://nvd-mock:8080/cves/2.0").lookup_cves(
+            "cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*"
+        )
+
+    request = mock_urlopen.call_args.args[0]
+    assert request.full_url.startswith("http://nvd-mock:8080/cves/2.0?cpeName=")
+
+
 def test_lookup_cves_returns_empty_list_when_nvd_has_no_results():
     payload = {
         "resultsPerPage": 0,

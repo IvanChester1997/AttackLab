@@ -11,12 +11,18 @@ class NVDClientError(Exception):
 class NVDClient:
     BASE_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 
-    def __init__(self, user_agent: str = "AttackLab/0.1", timeout: int = 30):
+    def __init__(
+        self,
+        user_agent: str = "AttackLab/0.1",
+        timeout: int = 30,
+        base_url: str | None = None,
+    ):
         self.user_agent = user_agent
         self.timeout = timeout
+        self.base_url = base_url or self.BASE_URL
 
     def lookup_cves(self, cpe: str) -> list[dict]:
-        url = f"{self.BASE_URL}?cpeName={quote(cpe, safe='')}"
+        url = f"{self.base_url}?cpeName={quote(cpe, safe='')}"
 
         request = Request(
             url,
