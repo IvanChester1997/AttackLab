@@ -3,6 +3,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    environment:
+      NVD_BASE_URL: http://nvd-mock:8081/rest/json/cves/2.0
+    depends_on:
+      - nvd-mock
     networks:
       - attacklab_lab
 
@@ -15,6 +19,12 @@ services:
       - "2222:22"
       - "2323:23"
       - "8080:80"
+    networks:
+      - attacklab_lab
+
+  nvd-mock:
+    build:
+      context: ./lab/nvd-mock
     networks:
       - attacklab_lab
 

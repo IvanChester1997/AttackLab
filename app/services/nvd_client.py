@@ -1,4 +1,5 @@
 import json
+import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -19,7 +20,7 @@ class NVDClient:
     ):
         self.user_agent = user_agent
         self.timeout = timeout
-        self.base_url = base_url or self.BASE_URL
+        self.base_url = base_url or os.getenv("NVD_BASE_URL") or self.BASE_URL
 
     def lookup_cves(self, cpe: str) -> list[dict]:
         url = f"{self.base_url}?cpeName={quote(cpe, safe='')}"

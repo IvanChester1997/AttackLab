@@ -63,6 +63,32 @@ def test_lookup_cves_uses_custom_base_url():
     assert request.full_url.startswith("http://nvd-mock:8080/cves/2.0?cpeName=")
 
 
+def test_lookup_cves_uses_environment_base_url(monkeypatch):
+    payload = {
+        "resultsPerPage": 0,
+        "startIndex": 0,
+        "totalResults": 0,
+        "vulnerabilities": [],
+    }
+
+    monkeypatch.setenv(
+        "NVD_BASE_URL",
+        "http://nvd-mock:8081/rest/json/cves/2.0",
+    )
+
+    with patch(
+        "app.services.nvd_client.urlopen",
+        return_value=FakeResponse(json.dumps(payload).encode()),
+    ) as mock_urlopen:
+        NVDClient().lookup_cves("cpe:2.3:a:test:product:1.0:*:*:*:*:*:*:*")
+
+    request = mock_urlopen.call_args.args[0]
+
+    assert request.full_url.startswith(
+        "http://nvd-mock:8081/rest/json/cves/2.0?cpeName="
+    )
+
+
 def test_lookup_cves_returns_empty_list_when_nvd_has_no_results():
     payload = {
         "resultsPerPage": 0,
