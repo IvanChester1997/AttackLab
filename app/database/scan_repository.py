@@ -5,6 +5,7 @@ import aiosqlite
 
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
+from app.services.target_parser import TargetParser
 
 
 CREATE_SCAN_HISTORY_TABLE = """
@@ -92,7 +93,7 @@ class ScanRepository:
                 """,
                 (
                     target,
-                    "host",
+                    TargetParser.parse(target).value,
                     "pending",
                     0,
                     "low",

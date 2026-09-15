@@ -66,6 +66,35 @@ async def _test_save_report_persists_security_report(tmp_path, report):
     assert stored_report["summary"]["risk_level"] == "low"
 
 
+def test_create_scan_persists_network_target_type(tmp_path):
+    asyncio.run(_test_create_scan_persists_target_type(tmp_path, "192.168.1.0/24", "network"))
+
+
+def test_create_scan_persists_hostname_target_type(tmp_path):
+    asyncio.run(_test_create_scan_persists_target_type(tmp_path, "scanme.nmap.org", "hostname"))
+
+
+async def _test_create_scan_persists_target_type(
+    tmp_path,
+    target: str,
+    expected_type: str,
+):
+    db_path = tmp_path / "test.db"
+    repository = ScanRepository(db_path)
+
+    await repository.init()
+    scan_id = await repository.create_scan(target)
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            "SELECT target, target_type, status FROM scan_history WHERE id = ?",
+            (scan_id,),
+        )
+        row = await cursor.fetchone()
+
+    assert row == (target, expected_type, "pending")
+
+
 def test_get_report_returns_saved_report(tmp_path, report):
     asyncio.run(_test_get_report_returns_saved_report(tmp_path, report))
 
