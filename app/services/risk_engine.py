@@ -1,4 +1,4 @@
-from app.models.finding import Finding, Severity
+from app.models.finding import Finding, FindingEvidence, Severity
 from app.models.port import ScanResult
 
 
@@ -68,6 +68,17 @@ class RiskEngine:
                     product=port.service.product,
                     version=port.service.version,
                     remediation=remediation,
+                    evidence=[
+                        FindingEvidence(
+                            source="nmap",
+                            check="service_exposure",
+                            details={
+                                "port": port.port,
+                                "protocol": port.protocol,
+                                "service": port.service.name,
+                            },
+                        )
+                    ],
                 )
             )
 

@@ -1161,6 +1161,7 @@ def test_detect_listening_tcp_port_findings():
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
             ),
+            "evidence": [],
         },
         {
             "title": "Listening TCP Port Detected",
@@ -1168,6 +1169,7 @@ def test_detect_listening_tcp_port_findings():
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:80"
             ),
+            "evidence": [],
         },
     ]
 
@@ -1212,6 +1214,7 @@ def test_run_audit_includes_listening_tcp_port_findings():
             "description": (
                 "Listening TCP port detected: " "tcp LISTEN 0 128 0.0.0.0:22"
             ),
+            "evidence": [],
         }
     ]
 
@@ -1252,6 +1255,7 @@ def test_detect_listening_udp_port_findings():
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
             ),
+            "evidence": [],
         },
         {
             "title": "Listening UDP Port Detected",
@@ -1259,6 +1263,7 @@ def test_detect_listening_udp_port_findings():
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:123"
             ),
+            "evidence": [],
         },
     ]
 
@@ -1306,6 +1311,7 @@ def test_run_audit_includes_listening_udp_port_findings():
             "description": (
                 "Listening UDP port detected: " "udp UNCONN 0 0 0.0.0.0:68"
             ),
+            "evidence": [],
         }
     ]
 
@@ -1353,6 +1359,7 @@ def test_detect_firewall_findings_policy_accept():
             "severity": "high",
             "description": "Firewall input policy is set to accept",
             "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
+            "evidence": [],
         }
     ]
 
@@ -1419,5 +1426,6 @@ table inet filter {
             "severity": "high",
             "description": "Firewall input policy is set to accept",
             "remediation": "Configure a restrictive inbound firewall policy and explicitly allow required services.",
+            "evidence": [],
         }
     ]
