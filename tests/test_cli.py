@@ -9,4 +9,4 @@ def test_version_command():
     result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0
-    assert "AttackLab v0.1.0" in result.stdout
+    assert "AttackLab v1.0.0" in result.stdout

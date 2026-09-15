@@ -386,7 +386,7 @@ When the API is running:
 ## Roadmap
 
 - Improve API examples and documentation
-- Version the project as `1.0.0`
+- Release version `1.0.0`
 - Create a Git tag and release
 - Clean up dependency warnings
 - Improve NVD retry, rate-limit, and pagination handling where justified

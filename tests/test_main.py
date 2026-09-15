@@ -27,7 +27,7 @@ def test_openapi_metadata_and_paths():
     data = response.json()
 
     assert data["info"]["title"] == "AttackLab"
-    assert data["info"]["version"] == "0.1.0"
+    assert data["info"]["version"] == "1.0.0"
     assert "/api/v1/assessments" in data["paths"]
     assert "/api/v1/scans" in data["paths"]
     assert "/api/v1/scans/{scan_id}" in data["paths"]

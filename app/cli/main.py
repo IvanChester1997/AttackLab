@@ -21,7 +21,7 @@ def version():
     """
     Show AttackLab version.
     """
-    typer.echo("AttackLab v0.1.0")
+    typer.echo("AttackLab v1.0.0")
 
 
 def _run_audit(

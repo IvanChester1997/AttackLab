@@ -20,7 +20,7 @@ app = FastAPI(
         "vulnerability mapping, Linux security auditing, risk scoring, and "
         "JSON/HTML reporting."
     ),
-    version="0.1.0",
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
