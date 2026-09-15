@@ -55,8 +55,14 @@ def _run_audit(
 
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
+        content = (
+            ReportGenerator.generate_html(report)
+            if output.suffix.lower() == ".html"
+            else ReportGenerator.generate_json(report)
+        )
+
         output.write_text(
-            ReportGenerator.generate_json(report),
+            content,
             encoding="utf-8",
         )
         typer.echo(f"Report saved to: {output}")

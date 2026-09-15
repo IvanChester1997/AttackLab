@@ -1,6 +1,7 @@
 from app.models.finding import Finding, Severity
 from app.models.port import PortResult, ScanResult
 from app.models.service import ServiceInfo
+from app.models.report import ReportSummary, SecurityReport
 from app.services.report_generator import ReportGenerator
 
 
@@ -248,3 +249,36 @@ def test_report_generator_includes_vulnerability_findings():
     assert report.summary.high == 1
     assert report.summary.low == 1
     assert report.summary.risk_score == 9
+
+
+def test_report_generates_html():
+    scan_result = ScanResult(
+        target="127.0.0.1",
+        ports=[],
+    )
+
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=scan_result,
+        findings=[
+            Finding(
+                title="<script>alert(1)</script>",
+                severity=Severity.HIGH,
+                description="HTML-safe description",
+                cve="CVE-2024-6387",
+            )
+        ],
+        summary=ReportSummary(
+            total_ports=0,
+            total_findings=1,
+            high=1,
+        ),
+    )
+
+    output = ReportGenerator.generate_html(report)
+
+    assert output.startswith("<!DOCTYPE html>")
+    assert "AttackLab Security Report" in output
+    assert "CVE-2024-6387" in output
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in output
+    assert "<script>alert(1)</script>" not in output

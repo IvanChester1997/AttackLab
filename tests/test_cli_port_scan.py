@@ -397,3 +397,63 @@ def test_audit_command_handles_ssh_error():
 
     assert result.exit_code != 0
     assert "connection failed" in result.output
+
+
+def test_scan_command_writes_html_report(tmp_path):
+    result_data = ScanResult(
+        target="127.0.0.1",
+        ports=[
+            PortResult(
+                port=23,
+                protocol="tcp",
+                state="open",
+                service={"name": "telnet"},
+            ),
+        ],
+    )
+
+    report = SecurityReport(
+        target="127.0.0.1",
+        scan=result_data,
+        findings=[
+            Finding(
+                title="Exposed telnet service",
+                severity=Severity.HIGH,
+                description="Telnet is insecure.",
+                port=23,
+                service="telnet",
+            )
+        ],
+        summary=ReportSummary(
+            total_ports=1,
+            total_findings=1,
+            high=1,
+        ),
+    )
+
+    output_file = tmp_path / "report.html"
+
+    with patch(
+        "app.cli.main.AssessmentService.run",
+        return_value=report,
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "scan",
+                "127.0.0.1",
+                "--output",
+                str(output_file),
+            ],
+        )
+
+    assert result.exit_code == 0
+    assert output_file.exists()
+
+    data = output_file.read_text(encoding="utf-8")
+
+    assert data.startswith("<!DOCTYPE html>")
+    assert "AttackLab Security Report" in data
+    assert "Exposed telnet service" in data
+    assert "Telnet is insecure." in data
+    assert "Report saved to:" in result.output

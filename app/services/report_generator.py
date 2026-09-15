@@ -1,6 +1,7 @@
 import json
 
 from app.models.finding import Finding, Severity
+from app.reporting.html_report import HTMLReportRenderer
 from app.models.linux_audit import LinuxAuditResult
 from app.models.port import ScanResult
 from app.models.report import ReportSummary, SecurityReport
@@ -70,3 +71,7 @@ class ReportGenerator:
             report.model_dump(mode="json"),
             indent=2,
         )
+
+    @staticmethod
+    def generate_html(report: SecurityReport) -> str:
+        return HTMLReportRenderer.render(report)
